@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { getPool } from '../models/database';
 import { Bet } from '../types/bet';
 import { checkGameResult, determineWinner } from '../services/resultsService';
-import { settleBet, cancelBet } from '../services/betManager';
+import { settleBet, cancelBet, getExpiredPendingBets } from '../services/betManager';
 import { app } from '../bot/slackBot';
 
 /**
@@ -15,6 +15,9 @@ export function startSettlementScheduler() {
     console.log('⏰ Running bet settlement check...');
 
     try {
+      // First, cancel any pending bets where the game has already started
+      await cleanupExpiredPendingBets();
+
       // Get active bets ready for settlement
       const bets = await getActiveBetsReadyForSettlement();
 
@@ -36,6 +39,61 @@ export function startSettlementScheduler() {
   });
 
   console.log('⏰ Settlement scheduler started (runs every 30 minutes)');
+}
+
+/**
+ * Cancel pending bets where the game has already started
+ */
+async function cleanupExpiredPendingBets(): Promise<void> {
+  try {
+    const expiredBets = await getExpiredPendingBets();
+
+    if (expiredBets.length === 0) {
+      console.log('No expired pending bets to clean up');
+      return;
+    }
+
+    console.log(`Found ${expiredBets.length} expired pending bet(s) to cancel`);
+
+    for (const bet of expiredBets) {
+      console.log(`❌ Cancelling expired pending bet ${bet.id} (game started at ${bet.game_date})`);
+
+      // Cancel the bet
+      await cancelBet(bet.id, 'Game started before bet was accepted');
+
+      // Post cancellation message to Slack
+      await postExpiredBetMessage(bet);
+    }
+
+    console.log('✅ Expired pending bets cleanup complete');
+  } catch (error) {
+    console.error('❌ Error cleaning up expired pending bets:', error);
+  }
+}
+
+/**
+ * Post message about expired pending bet
+ */
+async function postExpiredBetMessage(bet: Bet): Promise<void> {
+  try {
+    await app.client.chat.postMessage({
+      token: process.env.SLACK_BOT_TOKEN,
+      channel: bet.slack_channel_id,
+      thread_ts: bet.slack_thread_ts,
+      text: `⏰ *Bet Expired*
+
+This bet was never accepted and the game has already started.
+
+<@${bet.initiator_slack_id}> vs <@${bet.opponent_slack_id}>
+${bet.initiator_team} vs ${bet.opponent_team}
+
+Better luck next time! 🏀`
+    });
+
+    console.log(`✅ Posted expired bet message for bet ${bet.id}`);
+  } catch (error) {
+    console.error(`Error posting expired bet message for bet ${bet.id}:`, error);
+  }
 }
 
 /**
@@ -229,6 +287,9 @@ export async function manuallyTriggerSettlement(): Promise<void> {
   console.log('🧪 Manual settlement triggered!');
 
   try {
+    // First, cancel any pending bets where the game has already started
+    await cleanupExpiredPendingBets();
+
     // Get active bets ready for settlement
     const bets = await getActiveBetsReadyForSettlement();
 
