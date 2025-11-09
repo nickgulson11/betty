@@ -293,3 +293,94 @@ export function updateConversationState(
     conversation_history: updatedHistory
   };
 }
+
+/**
+ * Query intent types
+ */
+export interface QueryIntent {
+  type: 'list_bets' | 'bet_creation' | 'general_chat' | 'unknown';
+  scope?: 'self' | 'specific_user' | 'channel';
+  mentioned_users?: string[];
+}
+
+/**
+ * Detect if user is asking to list bets (vs creating a new bet)
+ * @param messageText - The raw Slack message text
+ * @returns Query intent
+ */
+export async function detectQueryIntent(messageText: string): Promise<QueryIntent> {
+  const prompt = `You are analyzing a message to a Slack betting bot named Betty. Determine if the user is:
+1. Asking to LIST/VIEW existing bets
+2. Creating a NEW bet
+3. Just chatting/asking general questions
+
+Message: "${messageText}"
+
+Analyze the message and return a JSON object with this structure:
+{
+  "type": "list_bets" | "bet_creation" | "general_chat" | "unknown",
+  "scope": "self" | "specific_user" | "channel" | null,
+  "mentioned_users": string[]
+}
+
+Guidelines:
+- type "list_bets": User is asking to see/list/check existing bets
+  Examples: "what bets do I have?", "show my bets", "does @user have any bets?", "what bets are open?", "list all bets"
+
+- type "bet_creation": User is creating a new bet
+  Examples: "I bet @user that Lakers win", "I'll bet $10 on the Knicks"
+
+- type "general_chat": User is asking general questions or chatting
+  Examples: "hello", "how are you?", "what can you do?"
+
+- scope "self": Asking about their own bets ("my bets", "do I have")
+- scope "specific_user": Asking about a specific user's bets ("does @user have", "@user's bets")
+- scope "channel": Asking about all bets in the channel/group ("what bets does this group have", "list all bets", "what's open")
+
+- mentioned_users: Extract @mentions in format <@U12345> as an array of user IDs
+
+Return ONLY the JSON object, no other text.`;
+
+  try {
+    const client = getAnthropicClient();
+
+    const message = await retryClaudeCall(async () => {
+      return await client.messages.create({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 512,
+        messages: [{
+          role: 'user',
+          content: prompt
+        }]
+      });
+    });
+
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response type from Claude');
+    }
+
+    let jsonText = content.text.trim();
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```(?:json)?\n?/, '');
+      jsonText = jsonText.replace(/\n?```$/, '');
+      jsonText = jsonText.trim();
+    }
+
+    const parsed = JSON.parse(jsonText);
+
+    return {
+      type: parsed.type || 'unknown',
+      scope: parsed.scope || undefined,
+      mentioned_users: parsed.mentioned_users || []
+    };
+
+  } catch (error) {
+    console.error('Error detecting query intent:', error);
+    // Default to bet creation to maintain backward compatibility
+    return {
+      type: 'bet_creation',
+      mentioned_users: []
+    };
+  }
+}

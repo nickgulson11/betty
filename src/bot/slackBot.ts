@@ -1,6 +1,6 @@
 import { App } from '@slack/bolt';
 import dotenv from 'dotenv';
-import { parseBetIntent, extractAllUserMentions } from '../services/claudeService';
+import { parseBetIntent, extractAllUserMentions, detectQueryIntent } from '../services/claudeService';
 import { normalizeTeamName, findGameForTeam, getOpponentTeam } from '../services/nbaService';
 import {
   createPendingBet,
@@ -9,6 +9,8 @@ import {
   getBetByMessageTs,
   updateBetStatus,
   checkDuplicateBet,
+  getOpenBetsByUsers,
+  formatOpenBetsList,
 } from '../services/betManager';
 import { BetDetails, SlackContext } from '../types/bet';
 
@@ -34,6 +36,52 @@ app.event('app_mention', async ({ event, say, client }) => {
     const threadTs = event.ts;
     const messageText = event.text;
     const currentDate = new Date();
+
+    // First, detect what type of query this is
+    console.log('🔍 Detecting query intent...');
+    const queryIntent = await detectQueryIntent(messageText);
+    console.log('📊 Query intent:', queryIntent);
+
+    // Handle bet listing queries
+    if (queryIntent.type === 'list_bets') {
+      console.log('📋 Handling bet listing query...');
+      let userIdsToQuery: string[] = [];
+
+      if (queryIntent.scope === 'self') {
+        // User asking about their own bets
+        userIdsToQuery = [event.user];
+      } else if (queryIntent.scope === 'specific_user' && queryIntent.mentioned_users && queryIntent.mentioned_users.length > 0) {
+        // User asking about specific user(s)
+        const bettyUserId = await getBettyUserId(client);
+        userIdsToQuery = queryIntent.mentioned_users.filter(id => id !== bettyUserId);
+      } else if (queryIntent.scope === 'channel') {
+        // User asking about all bets in the channel
+        userIdsToQuery = await getChannelMembers(client, event.channel);
+      } else {
+        // Default to requester's bets
+        userIdsToQuery = [event.user];
+      }
+
+      // Fetch and display open bets
+      const openBets = await getOpenBetsByUsers(userIdsToQuery);
+      const formattedList = formatOpenBetsList(openBets, event.user);
+
+      await say({
+        text: formattedList,
+        thread_ts: threadTs,
+      });
+
+      return;
+    }
+
+    // Handle general chat
+    if (queryIntent.type === 'general_chat') {
+      await say({
+        text: `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nTo check your bets:\n"@betty what bets do I have open?"\n\nLet's get betting! 🏀`,
+        thread_ts: threadTs,
+      });
+      return;
+    }
 
     // Parse the bet intent using Claude
     console.log('🤖 Parsing bet with Claude...');
@@ -251,6 +299,21 @@ async function getUserName(client: any, userId: string): Promise<string | undefi
   } catch (error) {
     console.error(`Failed to get user name for ${userId}:`, error);
     return undefined;
+  }
+}
+
+/**
+ * Get all members in a Slack channel (for group bet queries)
+ */
+async function getChannelMembers(client: any, channelId: string): Promise<string[]> {
+  try {
+    const result = await client.conversations.members({ channel: channelId });
+    const bettyUserId = await getBettyUserId(client);
+    // Filter out Betty from the list
+    return result.members.filter((id: string) => id !== bettyUserId);
+  } catch (error) {
+    console.error(`Failed to get channel members for ${channelId}:`, error);
+    return [];
   }
 }
 

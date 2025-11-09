@@ -338,3 +338,76 @@ export async function cancelBet(betId: string, reason: string): Promise<void> {
     throw error;
   }
 }
+
+/**
+ * Get open bets for specific user(s)
+ * @param userIds - Array of Slack user IDs to check
+ * @returns Array of open (pending or active) bets
+ */
+export async function getOpenBetsByUsers(userIds: string[]): Promise<Bet[]> {
+  const pool = getPool();
+
+  const query = `
+    SELECT * FROM bets
+    WHERE status IN ('pending', 'active')
+    AND (initiator_slack_id = ANY($1) OR opponent_slack_id = ANY($1))
+    ORDER BY game_date ASC, created_at ASC
+  `;
+
+  try {
+    const result = await pool.query(query, [userIds]);
+
+    return result.rows.map(row => ({
+      id: row.id,
+      created_at: row.created_at,
+      status: row.status,
+      initiator_slack_id: row.initiator_slack_id,
+      initiator_name: row.initiator_name,
+      opponent_slack_id: row.opponent_slack_id,
+      opponent_name: row.opponent_name,
+      initiator_team: row.initiator_team,
+      opponent_team: row.opponent_team,
+      game_date: row.game_date,
+      stakes: row.stakes,
+      slack_channel_id: row.slack_channel_id,
+      slack_thread_ts: row.slack_thread_ts,
+      slack_message_ts: row.slack_message_ts,
+      winner_slack_id: row.winner_slack_id,
+      final_score: row.final_score,
+      settled_at: row.settled_at,
+      conversation_state: row.conversation_state,
+      settlement_attempts: row.settlement_attempts,
+      last_settlement_check: row.last_settlement_check,
+    }));
+  } catch (error) {
+    console.error('❌ Error getting open bets:', error);
+    throw error;
+  }
+}
+
+/**
+ * Format open bets list for Slack display
+ * @param bets - Array of bets to format
+ * @param requesterId - The user who requested the list
+ * @returns Formatted Slack message text
+ */
+export function formatOpenBetsList(bets: Bet[], requesterId?: string): string {
+  if (bets.length === 0) {
+    return "No open bets found! Time to make some predictions? 🎲";
+  }
+
+  const betLines = bets.map((bet, index) => {
+    const gameTime = formatGameTime(bet.game_date);
+    const statusEmoji = bet.status === 'pending' ? '⏳' : '✅';
+    const statusText = bet.status === 'pending' ? 'Pending' : 'Active';
+
+    return `${index + 1}. ${statusEmoji} *${statusText}*
+   <@${bet.initiator_slack_id}> (${bet.initiator_team}) vs <@${bet.opponent_slack_id}> (${bet.opponent_team})
+   Game: ${gameTime} | Stakes: ${bet.stakes}`;
+  });
+
+  const header = `📋 *Open Bets* (${bets.length})`;
+  const footer = `\n_Pending bets need to be accepted. Active bets are locked in!_`;
+
+  return `${header}\n\n${betLines.join('\n\n')}${footer}`;
+}
