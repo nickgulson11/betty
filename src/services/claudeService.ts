@@ -102,9 +102,10 @@ IMPORTANT: When interpreting "tonight" or "today", use the date ${etDate.toLocal
 Analyze the message and extract:
 1. Who they're betting against (opponent) - look for @mentions or names (NOT the initiator!)
 2. Which team the initiator is betting on
-3. Which team the opponent would get (if specified or can be inferred)
-4. When the game is ("tonight", "tomorrow", specific date)
-5. What the stakes are (money amount, "bragging rights", etc.)
+3. When the game is ("tonight", "tomorrow", specific date)
+4. What the stakes are (money amount, "bragging rights", etc.)
+
+IMPORTANT: You do NOT need to determine which team the opponent gets. The opponent automatically gets the other team in the game. Only extract the team the INITIATOR is betting on.
 
 Return a JSON object with this exact structure:
 {
@@ -119,20 +120,21 @@ Return a JSON object with this exact structure:
 }
 
 Guidelines:
-- confidence "high": All critical info present (opponent, at least one team, timing)
-- confidence "low": Some info missing but bet intent is clear
+- confidence "high": All critical info present (opponent, team, timing). Stakes can be missing - they default to "bragging rights".
+- confidence "low": Missing critical info (opponent, team, or timing) but bet intent is clear
 - confidence "unclear": Not enough info to understand the bet, or no bet intent detected
-- missing_info: Array of what's missing (e.g., ["opponent", "team", "timing"])
-- clarifying_question: If confidence is not "high", provide a natural question to ask in Slack
+- missing_info: Array of what's missing (e.g., ["opponent", "team", "timing"]). Do NOT include "stakes" in missing_info unless explicitly asked about.
+- clarifying_question: If confidence is not "high", provide a natural question to ask in Slack. NEVER ask which team the opponent gets - they automatically get the opposing team.
 - For team names, preserve the exact text from the message (e.g., "Lakers", "Warriors")
 - Timing should be normalized (e.g., "tonight", "tomorrow", "2024-11-07")
-- If only one team is mentioned, opponent_team can be inferred from the matchup context
+- Leave opponent_team as null - it will be determined automatically from the game matchup
 
 Special cases:
 - If message doesn't seem to be about betting at all, return confidence "unclear" with missing_info ["no_bet_intent"]
 - Look for @mentions in format <@U12345> or @username for opponent
-- Stakes default to "bragging rights" if not specified but bet is otherwise clear
+- If stakes are not mentioned, leave stakes as null - they will default to "bragging rights"
 - DO NOT try to determine the initiator - we already know it's the message sender
+- DO NOT ask which team the opponent gets - they automatically get the other team in the matchup
 
 Return ONLY the JSON object, no other text.`;
 
