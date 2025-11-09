@@ -233,21 +233,22 @@ async function getBettyUserId(client: any): Promise<string> {
 }
 
 /**
- * Parse timing string to Date
+ * Parse timing string to Date (using US Eastern Time for NBA games)
  * @param timing - "tonight", "tomorrow", or date string
  * @returns Date object
  */
 function parseTimingToDate(timing: string): Date {
-  const now = new Date();
+  // Get current time in US Eastern Time (NBA's timezone)
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const normalizedTiming = timing.toLowerCase().trim();
 
   if (normalizedTiming === 'tonight' || normalizedTiming === 'today') {
-    // Set to 8 PM today (typical game time)
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0);
+    // Set to 8 PM today (typical game time) in Eastern Time
+    const today = new Date(nowET.getFullYear(), nowET.getMonth(), nowET.getDate(), 20, 0, 0);
     return today;
   } else if (normalizedTiming === 'tomorrow') {
-    // Set to 8 PM tomorrow
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 20, 0, 0);
+    // Set to 8 PM tomorrow in Eastern Time
+    const tomorrow = new Date(nowET.getFullYear(), nowET.getMonth(), nowET.getDate() + 1, 20, 0, 0);
     return tomorrow;
   } else {
     // Try to parse as date string
@@ -260,8 +261,8 @@ function parseTimingToDate(timing: string): Date {
       // Fall through to default
     }
 
-    // Default to tonight
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0);
+    // Default to tonight in Eastern Time
+    return new Date(nowET.getFullYear(), nowET.getMonth(), nowET.getDate(), 20, 0, 0);
   }
 }
 

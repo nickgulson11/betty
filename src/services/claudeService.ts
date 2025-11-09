@@ -78,10 +78,26 @@ export async function parseBetIntent(
     ? `\n\nIMPORTANT: The person who sent this message (Slack user ID: ${initiatorUserId}) is the BET INITIATOR. They are making the bet. You don't need to determine who the initiator is - it's the message sender.`
     : '';
 
+  // Convert to US Eastern Time for NBA game context
+  const etDate = new Date(currentDate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const dateStr = etDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'America/New_York'
+  });
+  const timeStr = etDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/New_York'
+  });
+
   const prompt = `You are analyzing a message from a Slack betting bot conversation. Extract betting details from this message.
 
 Message: "${messageText}"
-Current date and time: ${currentDate.toISOString()}${initiatorPrompt}${contextPrompt}
+Current date and time in US Eastern Time (NBA schedule timezone): ${dateStr} at ${timeStr}
+IMPORTANT: When interpreting "tonight" or "today", use the date ${etDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' })}. When interpreting "tomorrow", use ${new Date(etDate.getTime() + 24*60*60*1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}.${initiatorPrompt}${contextPrompt}
 
 Analyze the message and extract:
 1. Who they're betting against (opponent) - look for @mentions or names (NOT the initiator!)
