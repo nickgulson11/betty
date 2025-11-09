@@ -144,12 +144,14 @@ app.event('app_mention', async ({ event, say, client }) => {
       const isDuplicate = await checkDuplicateBet(
         betDetails.initiator_id,
         betDetails.opponent_id,
-        betDetails.game_date
+        betDetails.game_date,
+        betDetails.initiator_team,
+        betDetails.opponent_team
       );
 
       if (isDuplicate) {
         await say({
-          text: `⚠️ You already have an active or pending bet with <@${betDetails.opponent_id}> for a game on ${gameDate.toLocaleDateString()}!\n\nCheck your existing bets before creating a new one.`,
+          text: `⚠️ You already have an active or pending bet with <@${betDetails.opponent_id}> for ${betDetails.initiator_team} vs ${betDetails.opponent_team}!\n\nYou can't bet on the same game twice.`,
           thread_ts: threadTs,
         });
         return;

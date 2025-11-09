@@ -6,12 +6,16 @@ import { getPool } from '../models/database';
  * @param initiatorId - Initiator user ID
  * @param opponentId - Opponent user ID
  * @param gameDate - Game date
+ * @param initiatorTeam - Team the initiator is betting on
+ * @param opponentTeam - Team the opponent is betting on
  * @returns True if duplicate exists
  */
 export async function checkDuplicateBet(
   initiatorId: string,
   opponentId: string,
-  gameDate: Date
+  gameDate: Date,
+  initiatorTeam: string,
+  opponentTeam: string
 ): Promise<boolean> {
   const pool = getPool();
 
@@ -24,10 +28,14 @@ export async function checkDuplicateBet(
     )
     AND status IN ('pending', 'active')
     AND DATE(game_date) = DATE($3)
+    AND (
+      (initiator_team = $4 AND opponent_team = $5)
+      OR (initiator_team = $5 AND opponent_team = $4)
+    )
   `;
 
   try {
-    const result = await pool.query(query, [initiatorId, opponentId, gameDate]);
+    const result = await pool.query(query, [initiatorId, opponentId, gameDate, initiatorTeam, opponentTeam]);
     const count = parseInt(result.rows[0].count);
     return count > 0;
   } catch (error) {
