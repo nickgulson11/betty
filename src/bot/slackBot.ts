@@ -117,10 +117,16 @@ app.event('app_mention', async ({ event, say, client }) => {
         console.log(`⚠️  No game found in ESPN API, using fallback data`);
       }
 
+      // Fetch user names from Slack
+      const initiatorName = await getUserName(client, event.user as string);
+      const opponentName = await getUserName(client, opponentId);
+
       // Create bet details
       const betDetails: BetDetails = {
         initiator_id: event.user as string,
+        initiator_name: initiatorName,
         opponent_id: opponentId,
+        opponent_name: opponentName,
         initiator_team: normalizedTeam,
         opponent_team: opponentTeam,
         game_date: gameDate,
@@ -229,6 +235,20 @@ async function getBettyUserId(client: any): Promise<string> {
   } catch (error) {
     console.error('Failed to get Betty user ID:', error);
     return 'UNKNOWN';
+  }
+}
+
+/**
+ * Get user's display name from Slack
+ */
+async function getUserName(client: any, userId: string): Promise<string | undefined> {
+  try {
+    const result = await client.users.info({ user: userId });
+    // Prefer display_name, fall back to real_name
+    return result.user?.profile?.display_name || result.user?.profile?.real_name || result.user?.name;
+  } catch (error) {
+    console.error(`Failed to get user name for ${userId}:`, error);
+    return undefined;
   }
 }
 

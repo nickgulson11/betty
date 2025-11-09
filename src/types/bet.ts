@@ -5,7 +5,9 @@ export interface Bet {
   created_at: Date;
   status: BetStatus;
   initiator_slack_id: string;
+  initiator_name?: string;
   opponent_slack_id: string;
+  opponent_name?: string;
   initiator_team: string;
   opponent_team: string;
   game_date: Date;
@@ -67,7 +69,9 @@ export interface NBAGame {
 
 export interface BetDetails {
   initiator_id: string;
+  initiator_name?: string;
   opponent_id: string;
+  opponent_name?: string;
   initiator_team: string;
   opponent_team: string;
   game_date: Date;

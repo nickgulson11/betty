@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS bets (
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   status VARCHAR(20) NOT NULL, -- pending, active, settled, declined, cancelled
   initiator_slack_id TEXT NOT NULL,
+  initiator_name TEXT,
   opponent_slack_id TEXT NOT NULL,
+  opponent_name TEXT,
   initiator_team TEXT NOT NULL,
   opponent_team TEXT NOT NULL,
   game_date TIMESTAMP NOT NULL,

@@ -52,7 +52,9 @@ export async function createPendingBet(
     INSERT INTO bets (
       status,
       initiator_slack_id,
+      initiator_name,
       opponent_slack_id,
+      opponent_name,
       initiator_team,
       opponent_team,
       game_date,
@@ -60,14 +62,16 @@ export async function createPendingBet(
       slack_channel_id,
       slack_thread_ts,
       settlement_attempts
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING *
   `;
 
   const values = [
     'pending',
     betDetails.initiator_id,
+    betDetails.initiator_name,
     betDetails.opponent_id,
+    betDetails.opponent_name,
     betDetails.initiator_team,
     betDetails.opponent_team,
     betDetails.game_date,
@@ -92,7 +96,9 @@ export async function createPendingBet(
       created_at: bet.created_at,
       status: bet.status,
       initiator_slack_id: bet.initiator_slack_id,
+      initiator_name: bet.initiator_name,
       opponent_slack_id: bet.opponent_slack_id,
+      opponent_name: bet.opponent_name,
       initiator_team: bet.initiator_team,
       opponent_team: bet.opponent_team,
       game_date: bet.game_date,
@@ -176,7 +182,9 @@ export async function getBetByMessageTs(
       created_at: bet.created_at,
       status: bet.status,
       initiator_slack_id: bet.initiator_slack_id,
+      initiator_name: bet.initiator_name,
       opponent_slack_id: bet.opponent_slack_id,
+      opponent_name: bet.opponent_name,
       initiator_team: bet.initiator_team,
       opponent_team: bet.opponent_team,
       game_date: bet.game_date,
