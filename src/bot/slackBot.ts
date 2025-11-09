@@ -49,22 +49,23 @@ app.event('app_mention', async ({ event, say, client }) => {
 
       if (queryIntent.scope === 'self') {
         // User asking about their own bets
-        userIdsToQuery = [event.user];
+        userIdsToQuery = [event.user as string];
       } else if (queryIntent.scope === 'specific_user' && queryIntent.mentioned_users && queryIntent.mentioned_users.length > 0) {
         // User asking about specific user(s)
         const bettyUserId = await getBettyUserId(client);
-        userIdsToQuery = queryIntent.mentioned_users.filter(id => id !== bettyUserId);
+        const mentionedUsers = queryIntent.mentioned_users || [];
+        userIdsToQuery = mentionedUsers.filter(id => id !== bettyUserId);
       } else if (queryIntent.scope === 'channel') {
         // User asking about all bets in the channel
-        userIdsToQuery = await getChannelMembers(client, event.channel);
+        userIdsToQuery = await getChannelMembers(client, event.channel as string);
       } else {
         // Default to requester's bets
-        userIdsToQuery = [event.user];
+        userIdsToQuery = [event.user as string];
       }
 
       // Fetch and display open bets
       const openBets = await getOpenBetsByUsers(userIdsToQuery);
-      const formattedList = formatOpenBetsList(openBets, event.user);
+      const formattedList = formatOpenBetsList(openBets);
 
       await say({
         text: formattedList,

@@ -388,10 +388,9 @@ export async function getOpenBetsByUsers(userIds: string[]): Promise<Bet[]> {
 /**
  * Format open bets list for Slack display
  * @param bets - Array of bets to format
- * @param requesterId - The user who requested the list
  * @returns Formatted Slack message text
  */
-export function formatOpenBetsList(bets: Bet[], requesterId?: string): string {
+export function formatOpenBetsList(bets: Bet[]): string {
   if (bets.length === 0) {
     return "No open bets found! Time to make some predictions? 🎲";
   }
