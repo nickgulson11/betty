@@ -40,7 +40,7 @@ export function startSettlementScheduler() {
 
 /**
  * Get active bets that are ready for settlement
- * (game time + 30 minutes has passed)
+ * (game time + 90 minutes has passed)
  */
 async function getActiveBetsReadyForSettlement(): Promise<Bet[]> {
   const pool = getPool();
@@ -48,7 +48,7 @@ async function getActiveBetsReadyForSettlement(): Promise<Bet[]> {
   const query = `
     SELECT * FROM bets
     WHERE status = 'active'
-    AND game_date + INTERVAL '30 minutes' < NOW()
+    AND game_date + INTERVAL '90 minutes' < NOW()
     AND settled_at IS NULL
     ORDER BY game_date ASC
   `;
