@@ -45,26 +45,39 @@ app.event('app_mention', async ({ event, say, client }) => {
     // Handle bet listing queries
     if (queryIntent.type === 'list_bets') {
       console.log('📋 Handling bet listing query...');
+      console.log('   Scope:', queryIntent.scope);
       let userIdsToQuery: string[] = [];
 
       if (queryIntent.scope === 'self') {
         // User asking about their own bets
         userIdsToQuery = [event.user as string];
+        console.log('   Querying for self:', userIdsToQuery);
       } else if (queryIntent.scope === 'specific_user' && queryIntent.mentioned_users && queryIntent.mentioned_users.length > 0) {
         // User asking about specific user(s)
         const bettyUserId = await getBettyUserId(client);
         const mentionedUsers = queryIntent.mentioned_users || [];
         userIdsToQuery = mentionedUsers.filter(id => id !== bettyUserId);
+        console.log('   Querying for specific users:', userIdsToQuery);
       } else if (queryIntent.scope === 'channel') {
         // User asking about all bets in the channel
         userIdsToQuery = await getChannelMembers(client, event.channel as string);
+        console.log('   Querying for channel members:', userIdsToQuery);
+
+        // If channel members is empty or failed, fall back to just the requester
+        if (userIdsToQuery.length === 0) {
+          console.log('   ⚠️ No channel members found, falling back to requester');
+          userIdsToQuery = [event.user as string];
+        }
       } else {
         // Default to requester's bets
         userIdsToQuery = [event.user as string];
+        console.log('   Querying for self (default):', userIdsToQuery);
       }
 
       // Fetch and display open bets
+      console.log('   Final user IDs to query:', userIdsToQuery);
       const openBets = await getOpenBetsByUsers(userIdsToQuery);
+      console.log(`   Found ${openBets.length} open bets`);
       const formattedList = formatOpenBetsList(openBets);
 
       await say({
@@ -308,10 +321,15 @@ async function getUserName(client: any, userId: string): Promise<string | undefi
  */
 async function getChannelMembers(client: any, channelId: string): Promise<string[]> {
   try {
+    console.log(`   Fetching members for channel: ${channelId}`);
     const result = await client.conversations.members({ channel: channelId });
+    console.log(`   Raw members from Slack:`, result.members);
     const bettyUserId = await getBettyUserId(client);
+    console.log(`   Betty's user ID: ${bettyUserId}`);
     // Filter out Betty from the list
-    return result.members.filter((id: string) => id !== bettyUserId);
+    const filteredMembers = result.members.filter((id: string) => id !== bettyUserId);
+    console.log(`   Filtered members (without Betty):`, filteredMembers);
+    return filteredMembers;
   } catch (error) {
     console.error(`Failed to get channel members for ${channelId}:`, error);
     return [];

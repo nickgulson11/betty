@@ -325,7 +325,7 @@ Analyze the message and return a JSON object with this structure:
 
 Guidelines:
 - type "list_bets": User is asking to see/list/check existing bets
-  Examples: "what bets do I have?", "show my bets", "does @user have any bets?", "what bets are open?", "list all bets"
+  Examples: "what bets do I have?", "show my bets", "does @user have any bets?", "what bets are open?", "list all bets", "what bets does this group have", "show all open bets"
 
 - type "bet_creation": User is creating a new bet
   Examples: "I bet @user that Lakers win", "I'll bet $10 on the Knicks"
@@ -333,9 +333,11 @@ Guidelines:
 - type "general_chat": User is asking general questions or chatting
   Examples: "hello", "how are you?", "what can you do?"
 
-- scope "self": Asking about their own bets ("my bets", "do I have")
-- scope "specific_user": Asking about a specific user's bets ("does @user have", "@user's bets")
-- scope "channel": Asking about all bets in the channel/group ("what bets does this group have", "list all bets", "what's open")
+- scope "self": Asking about their own bets ("my bets", "do I have", "what are my bets")
+- scope "specific_user": Asking about a specific user's bets ("does @user have", "@user's bets", "show @user's bets")
+- scope "channel": Asking about all bets in the channel/group/everyone ("what bets does this group have", "what bets does everyone have", "list all bets", "what's open", "what are the open bets", "show all bets", "group bets", "channel bets")
+
+IMPORTANT: If the user mentions "group", "everyone", "all bets", "channel", or asks generically about "open bets" without specifying themselves or another user, set scope to "channel".
 
 - mentioned_users: Extract @mentions in format <@U12345> as an array of user IDs
 
