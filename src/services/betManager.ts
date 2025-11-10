@@ -245,9 +245,12 @@ export async function updateBetStatus(
  * @returns Formatted date string
  */
 export function formatGameTime(gameDate: Date): string {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const gameDay = new Date(gameDate.getFullYear(), gameDate.getMonth(), gameDate.getDate());
+  // Use US Eastern Time for NBA games
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const gameDateET = new Date(gameDate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+
+  const today = new Date(nowET.getFullYear(), nowET.getMonth(), nowET.getDate());
+  const gameDay = new Date(gameDateET.getFullYear(), gameDateET.getMonth(), gameDateET.getDate());
 
   const diffDays = Math.floor((gameDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -261,7 +264,8 @@ export function formatGameTime(gameDate: Date): string {
     return gameDate.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'America/New_York'
     });
   }
 }
