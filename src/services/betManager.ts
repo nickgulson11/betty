@@ -1,5 +1,10 @@
 import { Bet, BetDetails, SlackContext } from '../types/bet';
 import { getPool } from '../models/database';
+import {
+  isPersonalityModeEnabled,
+  getPersonalityConfirmationMessage,
+  getPersonalityNoBetsMessage
+} from './personalityService';
 
 /**
  * Check if a similar active bet already exists
@@ -276,6 +281,12 @@ export function formatGameTime(gameDate: Date): string {
  * @returns Formatted Slack message
  */
 export function formatConfirmationMessage(bet: Bet): string {
+  // Use personality version if enabled
+  if (isPersonalityModeEnabled()) {
+    return getPersonalityConfirmationMessage(bet);
+  }
+
+  // Default neutral version
   const gameTime = formatGameTime(bet.game_date);
 
   return `🎲 *Bet Proposed!*
@@ -441,6 +452,10 @@ export async function getExpiredPendingBets(): Promise<Bet[]> {
  */
 export function formatOpenBetsList(bets: Bet[]): string {
   if (bets.length === 0) {
+    // Use personality version if enabled
+    if (isPersonalityModeEnabled()) {
+      return getPersonalityNoBetsMessage();
+    }
     return "No open bets found! Time to make some predictions? 🎲";
   }
 
@@ -454,6 +469,14 @@ export function formatOpenBetsList(bets: Bet[]): string {
    Game: ${gameTime} | Stakes: ${bet.stakes}`;
   });
 
+  // Use personality header/footer if enabled
+  if (isPersonalityModeEnabled()) {
+    const header = `📋 *Here's what you got cooking, playa* (${bets.length} bet${bets.length > 1 ? 's' : ''})`;
+    const footer = `\n_Pending bets need acceptance. Active bets are LOCKED - no backing out now, fam 💪_`;
+    return `${header}\n\n${betLines.join('\n\n')}${footer}`;
+  }
+
+  // Default neutral version
   const header = `📋 *Open Bets* (${bets.length})`;
   const footer = `\n_Pending bets need to be accepted. Active bets are locked in!_`;
 

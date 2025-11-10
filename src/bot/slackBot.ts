@@ -12,6 +12,16 @@ import {
   getOpenBetsByUsers,
   formatOpenBetsList,
 } from '../services/betManager';
+import {
+  isPersonalityModeEnabled,
+  getPersonalityWelcomeMessage,
+  getPersonalityAcceptanceMessage,
+  getPersonalityDeclineMessage,
+  getPersonalityDuplicateBetMessage,
+  getPersonalityGameStartedMessage,
+  getPersonalityErrorMessage,
+  getPersonalityClarifyingQuestion
+} from '../services/personalityService';
 import { BetDetails, SlackContext } from '../types/bet';
 
 dotenv.config();
@@ -90,8 +100,12 @@ app.event('app_mention', async ({ event, say, client }) => {
 
     // Handle general chat
     if (queryIntent.type === 'general_chat') {
+      const welcomeMessage = isPersonalityModeEnabled()
+        ? getPersonalityWelcomeMessage()
+        : `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nTo check your bets:\n"@betty what bets do I have open?"\n\nLet's get betting! 🏀`;
+
       await say({
-        text: `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nTo check your bets:\n"@betty what bets do I have open?"\n\nLet's get betting! 🏀`,
+        text: welcomeMessage,
         thread_ts: threadTs,
       });
       return;
@@ -106,8 +120,12 @@ app.event('app_mention', async ({ event, say, client }) => {
     // Handle different confidence levels
     if (parsedBet.missing_info.includes('no_bet_intent')) {
       // User is just chatting, not making a bet
+      const welcomeMessage = isPersonalityModeEnabled()
+        ? getPersonalityWelcomeMessage()
+        : `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nOr just:\n"I bet @friend Lakers win tonight"`;
+
       await say({
-        text: `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nOr just:\n"I bet @friend Lakers win tonight"`,
+        text: welcomeMessage,
         thread_ts: threadTs,
       });
       return;
@@ -123,11 +141,20 @@ app.event('app_mention', async ({ event, say, client }) => {
 
     if (parsedBet.confidence === 'unclear' || parsedBet.confidence === 'low') {
       // Need clarification
-      const clarificationMessage = parsedBet.clarifying_question ||
-        "I'm not quite sure I understand. Who are you betting with, and which team are you betting on?";
+      let clarificationMessage: string;
+
+      if (isPersonalityModeEnabled() && parsedBet.missing_info.length > 0) {
+        // Use personality clarifying question
+        clarificationMessage = getPersonalityClarifyingQuestion(parsedBet.missing_info);
+      } else {
+        // Use Claude's clarifying question or default
+        clarificationMessage = parsedBet.clarifying_question ||
+          "I'm not quite sure I understand. Who are you betting with, and which team are you betting on?";
+        clarificationMessage = `🤔 ${clarificationMessage}`;
+      }
 
       await say({
-        text: `🤔 ${clarificationMessage}`,
+        text: clarificationMessage,
         thread_ts: threadTs,
       });
       return;
@@ -212,8 +239,12 @@ app.event('app_mention', async ({ event, say, client }) => {
       );
 
       if (isDuplicate) {
+        const duplicateMessage = isPersonalityModeEnabled()
+          ? getPersonalityDuplicateBetMessage(betDetails.opponent_id, betDetails.initiator_team, betDetails.opponent_team)
+          : `⚠️ You already have an active or pending bet with <@${betDetails.opponent_id}> for ${betDetails.initiator_team} vs ${betDetails.opponent_team}!\n\nYou can't bet on the same game twice.`;
+
         await say({
-          text: `⚠️ You already have an active or pending bet with <@${betDetails.opponent_id}> for ${betDetails.initiator_team} vs ${betDetails.opponent_team}!\n\nYou can't bet on the same game twice.`,
+          text: duplicateMessage,
           thread_ts: threadTs,
         });
         return;
@@ -258,19 +289,25 @@ app.event('app_mention', async ({ event, say, client }) => {
 
     // Try to send user-friendly error message
     try {
-      let errorMessage = `😅 Oops! I ran into a problem processing that bet.\n\n`;
+      let errorMessage: string;
 
-      // Provide helpful error details
-      if (error instanceof Error) {
-        if (error.message.includes('database') || error.message.includes('connection')) {
-          errorMessage += `It looks like I'm having trouble connecting to my database. Please try again in a moment!`;
-        } else if (error.message.includes('API') || error.message.includes('fetch')) {
-          errorMessage += `I'm having trouble reaching the game data service. Please try again shortly!`;
-        } else {
-          errorMessage += `Something unexpected happened. Please try again, and if the problem continues, let your admin know!`;
-        }
+      if (isPersonalityModeEnabled()) {
+        errorMessage = getPersonalityErrorMessage();
       } else {
-        errorMessage += `Something unexpected happened. Please try again later!`;
+        errorMessage = `😅 Oops! I ran into a problem processing that bet.\n\n`;
+
+        // Provide helpful error details
+        if (error instanceof Error) {
+          if (error.message.includes('database') || error.message.includes('connection')) {
+            errorMessage += `It looks like I'm having trouble connecting to my database. Please try again in a moment!`;
+          } else if (error.message.includes('API') || error.message.includes('fetch')) {
+            errorMessage += `I'm having trouble reaching the game data service. Please try again shortly!`;
+          } else {
+            errorMessage += `Something unexpected happened. Please try again, and if the problem continues, let your admin know!`;
+          }
+        } else {
+          errorMessage += `Something unexpected happened. Please try again later!`;
+        }
       }
 
       await say({
@@ -414,10 +451,14 @@ app.event('reaction_added', async ({ event, client }) => {
 
     if (gameDate <= now) {
       console.log(`⚠️  Game has already started - cannot accept bet ${bet.id}`);
+      const gameStartedMessage = isPersonalityModeEnabled()
+        ? getPersonalityGameStartedMessage()
+        : `⚠️ Sorry, the game has already started! Bets can only be accepted before kickoff.`;
+
       await client.chat.postMessage({
         channel: bet.slack_channel_id,
         thread_ts: bet.slack_thread_ts,
-        text: `⚠️ Sorry, the game has already started! Bets can only be accepted before kickoff.`,
+        text: gameStartedMessage,
       });
       // Update bet to cancelled
       await updateBetStatus(bet.id, 'cancelled');
@@ -432,10 +473,14 @@ app.event('reaction_added', async ({ event, client }) => {
       await updateBetStatus(bet.id, 'active');
 
       // Post acceptance message
+      const acceptanceMessage = isPersonalityModeEnabled()
+        ? getPersonalityAcceptanceMessage(bet)
+        : `✅ *Bet locked in!* <@${bet.initiator_slack_id}> vs <@${bet.opponent_slack_id}>\n\nMay the best predictor win! 🏀\n\nI'll check the results after the game and let you know who won.`;
+
       await client.chat.postMessage({
         channel: bet.slack_channel_id,
         thread_ts: bet.slack_thread_ts,
-        text: `✅ *Bet locked in!* <@${bet.initiator_slack_id}> vs <@${bet.opponent_slack_id}>\n\nMay the best predictor win! 🏀\n\nI'll check the results after the game and let you know who won.`,
+        text: acceptanceMessage,
       });
 
       console.log('✅ Bet activated successfully');
@@ -452,10 +497,14 @@ app.event('reaction_added', async ({ event, client }) => {
       const decliner = isOpponent ? bet.opponent_slack_id : bet.initiator_slack_id;
 
       // Post decline message
+      const declineMessage = isPersonalityModeEnabled()
+        ? getPersonalityDeclineMessage(bet.initiator_slack_id, bet.opponent_slack_id, decliner)
+        : `❌ Bet declined by <@${decliner}>. Maybe next time!`;
+
       await client.chat.postMessage({
         channel: bet.slack_channel_id,
         thread_ts: bet.slack_thread_ts,
-        text: `❌ Bet declined by <@${decliner}>. Maybe next time!`,
+        text: declineMessage,
       });
 
       console.log('❌ Bet declined');

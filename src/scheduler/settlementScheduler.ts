@@ -4,6 +4,10 @@ import { Bet } from '../types/bet';
 import { checkGameResult, determineWinner } from '../services/resultsService';
 import { settleBet, cancelBet, getExpiredPendingBets } from '../services/betManager';
 import { app } from '../bot/slackBot';
+import {
+  isPersonalityModeEnabled,
+  generatePersonalitySettlementMessage
+} from '../services/personalityService';
 
 /**
  * Start the settlement scheduler
@@ -229,17 +233,28 @@ async function postSettlementMessage(
       ? bet.opponent_slack_id
       : bet.initiator_slack_id;
 
+    let settlementMessage: string;
+
+    // Use personality-driven Claude-generated message if enabled
+    if (isPersonalityModeEnabled()) {
+      console.log('🎭 Generating personality settlement message with Claude...');
+      settlementMessage = await generatePersonalitySettlementMessage(bet, winnerId, finalScore);
+    } else {
+      // Default neutral message
+      settlementMessage = `🏆 *Bet Settled!*
+
+Final Score: ${finalScore}
+
+<@${winnerId}> wins the bet! 🎉
+<@${loserId}>, time to pay up those ${bet.stakes}! 💸`;
+    }
+
     await app.client.chat.postMessage({
       token: process.env.SLACK_BOT_TOKEN,
       channel: bet.slack_channel_id,
       thread_ts: bet.slack_thread_ts,
       reply_broadcast: true,  // Also send to main channel
-      text: `🏆 *Bet Settled!*
-
-Final Score: ${finalScore}
-
-<@${winnerId}> wins the bet! 🎉
-<@${loserId}>, time to pay up those ${bet.stakes}! 💸`
+      text: settlementMessage
     });
 
     console.log(`✅ Posted settlement message for bet ${bet.id}`);
