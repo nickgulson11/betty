@@ -104,9 +104,11 @@ app.event('app_mention', async ({ event, say, client }) => {
         ? getPersonalityWelcomeMessage()
         : `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nTo check your bets:\n"@betty what bets do I have open?"\n\nLet's get betting! 🏀`;
 
-      await say({
-        text: welcomeMessage,
+      await client.chat.postMessage({
+        channel: event.channel,
         thread_ts: threadTs,
+        reply_broadcast: true,  // Also send to main channel
+        text: welcomeMessage,
       });
       return;
     }
@@ -124,9 +126,11 @@ app.event('app_mention', async ({ event, say, client }) => {
         ? getPersonalityWelcomeMessage()
         : `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nOr just:\n"I bet @friend Lakers win tonight"`;
 
-      await say({
-        text: welcomeMessage,
+      await client.chat.postMessage({
+        channel: event.channel,
         thread_ts: threadTs,
+        reply_broadcast: true,  // Also send to main channel
+        text: welcomeMessage,
       });
       return;
     }
