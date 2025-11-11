@@ -11,10 +11,20 @@ export async function checkGameResult(bet: Bet): Promise<GameResult> {
     console.log(`🔍 Checking game result for ${bet.initiator_team} vs ${bet.opponent_team}`);
 
     // Format date for ESPN API (YYYYMMDD)
+    // ESPN indexes games by Eastern Time, not UTC
     const gameDate = new Date(bet.game_date);
-    const year = gameDate.getFullYear();
-    const month = String(gameDate.getMonth() + 1).padStart(2, '0');
-    const day = String(gameDate.getDate()).padStart(2, '0');
+
+    // Convert to Eastern Time (America/New_York) to match ESPN's indexing
+    const etDateString = gameDate.toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+
+    // Parse the ET date string (format: "MM/DD/YYYY, HH:MM:SS AM/PM")
+    const [datePart] = etDateString.split(', ');
+    const [month, day, year] = datePart.split('/');
     const dateString = `${year}${month}${day}`;
 
     const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateString}`;
