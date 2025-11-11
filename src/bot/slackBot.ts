@@ -200,14 +200,13 @@ app.event('app_mention', async ({ event, say, client }) => {
         gameDate = actualGame.start_time;
         console.log(`✅ Found game: ${actualGame.away_team} @ ${actualGame.home_team} at ${gameDate.toLocaleString()}`);
       } else {
-        // Fallback if no game found
-        if (parsedBet.opponent_team) {
-          opponentTeam = normalizeTeamName(parsedBet.opponent_team);
-        } else {
-          opponentTeam = 'Opponent Team';
-        }
-        gameDate = estimatedGameDate;
-        console.log(`⚠️  No game found in ESPN API, using fallback data`);
+        // No game found - reject the bet
+        console.log(`❌ No game found for ${normalizedTeam} on ${estimatedGameDate.toDateString()}`);
+        await say({
+          text: `😏 Nice try, but the ${normalizedTeam} aren't playing ${parsedBet.timing || 'tonight'}. Can't bet on a game that doesn't exist, genius. Check the schedule and come back when you've got a real game!`,
+          thread_ts: threadTs,
+        });
+        return;
       }
 
       // Fetch user names from Slack
