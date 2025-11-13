@@ -218,25 +218,23 @@ const WELCOME_TEMPLATES = [
 
 I'm Betty, and I run the bets around here 💰🏀
 
-**Want to make a bet?** Hit me with:
-"@betty I bet @friend that the Lakers win tonight for $5"
+Want to make a bet? Hit me with:
+"@betty I bet @friend $10 that the Warriors will win tonight"
+"@betty I bet @friend that the Bulls will win tomorrow"
 
-**Check your bets:**
-"@betty what bets do I have open?"
-
-**Fair warning:** I don't hold back when it's time to announce results. We'll find out real quick who knows ball and who's just talking 😏🔥`,
+Check your bets:
+"@betty what bets do I have open?"`,
 
   `👋 *Hey there, playa*
 
-I'm Betty - your NBA betting bot with ZERO filter 💅🏀
+I'm Betty - your NBA betting bot 💰🏀
 
-**Make a bet like:**
-"@betty I bet @friend the Warriors win tomorrow"
+Make a bet like:
+"@betty I bet @friend $10 that the Warriors will win tonight"
+"@betty I bet @friend that the Bulls will win tomorrow"
 
-**Check your action:**
-"@betty show my bets"
-
-**Heads up:** When results drop, I'm coming with the roasts. You've been warned, fam 🔥😘`,
+Check your action:
+"@betty show my bets"`,
 ];
 
 export function getPersonalityWelcomeMessage(): string {
