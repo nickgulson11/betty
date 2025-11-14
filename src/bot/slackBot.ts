@@ -221,22 +221,23 @@ app.event('app_mention', async ({ event, say, client }) => {
       } else {
         // NFL: For most cases, just find next upcoming game
         // Only use specific date lookup if user provides an actual date
-        const timing = (parsedBet.timing || '').toLowerCase();
-        const isVagueNFLTiming = !timing ||
-                                  timing === 'tonight' ||
-                                  timing === 'today' ||
-                                  timing === 'tomorrow' ||
-                                  timing === 'sunday' ||
-                                  timing === 'this week' ||
-                                  timing === 'this sunday' ||
-                                  timing === 'next week' ||
-                                  timing.includes('weekend');
+        const timing = (parsedBet.timing || '').toLowerCase().trim();
 
-        if (isVagueNFLTiming) {
+        console.log(`🔍 Detected timing for NFL: "${timing}"`);
+
+        // Check if it's a specific date format (YYYY-MM-DD, MM/DD/YYYY, etc)
+        const hasSpecificDate = timing && (
+          /^\d{4}-\d{2}-\d{2}/.test(timing) ||  // YYYY-MM-DD
+          /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(timing) ||  // MM/DD/YYYY
+          /^(january|february|march|april|may|june|july|august|september|october|november|december)/.test(timing) // Month name
+        );
+
+        // For NFL, default to finding next game unless there's a very specific date
+        if (!hasSpecificDate) {
           console.log(`🔍 Looking up next NFL game for ${normalizedTeam}...`);
           actualGame = await findNextNFLGame(normalizedTeam);
         } else {
-          // Specific date provided, use it
+          // Very specific date provided, use it
           const estimatedGameDate = parseTimingToDate(parsedBet.timing || 'tonight');
           console.log(`🔍 Looking up NFL game for ${normalizedTeam} on ${estimatedGameDate.toDateString()}...`);
           actualGame = await findGameForNFLTeam(normalizedTeam, estimatedGameDate);
@@ -256,13 +257,14 @@ app.event('app_mention', async ({ event, say, client }) => {
         console.log(`✅ Found game: ${actualGame.away_team} @ ${actualGame.home_team} at ${gameDate.toLocaleString()}`);
       } else {
         // No game found - reject the bet
-        const timing = (parsedBet.timing || '').toLowerCase();
-        const isVagueNFLTiming = !timing || timing === 'tonight' || timing === 'today' ||
-                                  timing === 'tomorrow' || timing === 'sunday' ||
-                                  timing === 'this week' || timing === 'this sunday' ||
-                                  timing === 'next week' || timing.includes('weekend');
+        const timing = (parsedBet.timing || '').toLowerCase().trim();
+        const hasSpecificDate = timing && (
+          /^\d{4}-\d{2}-\d{2}/.test(timing) ||
+          /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(timing) ||
+          /^(january|february|march|april|may|june|july|august|september|october|november|december)/.test(timing)
+        );
 
-        const timingText = sport === 'NFL Football' && isVagueNFLTiming
+        const timingText = sport === 'NFL Football' && !hasSpecificDate
           ? 'in the next 14 days'
           : parsedBet.timing || 'tonight';
 
