@@ -263,6 +263,44 @@ export async function findGameForNFLTeam(
 }
 
 /**
+ * Find the next upcoming game for an NFL team (searches up to 14 days ahead)
+ * @param teamName - Team name (will be normalized)
+ * @returns Next game if found, null otherwise
+ */
+export async function findNextNFLGame(teamName: string): Promise<NFLGame | null> {
+  const normalizedTeam = normalizeNFLTeamName(teamName);
+
+  if (!normalizedTeam) {
+    console.log(`❌ Team "${teamName}" not recognized as NFL team`);
+    return null;
+  }
+
+  // Search the next 14 days for this team's next game
+  const today = new Date();
+
+  for (let daysAhead = 0; daysAhead < 14; daysAhead++) {
+    const searchDate = new Date(today);
+    searchDate.setDate(today.getDate() + daysAhead);
+
+    const game = await findGameForNFLTeam(teamName, searchDate);
+
+    if (game) {
+      // Check if game hasn't started yet (or if in testing mode, any game is ok)
+      const now = new Date();
+      const isTestingMode = process.env.TESTING_MODE === 'true';
+
+      if (game.start_time > now || isTestingMode) {
+        console.log(`🏈 Found next NFL game for ${normalizedTeam} on ${game.start_time.toDateString()}`);
+        return game;
+      }
+    }
+  }
+
+  console.log(`❌ No upcoming NFL game found for ${normalizedTeam} in the next 14 days`);
+  return null;
+}
+
+/**
  * Get the opponent team from a matchup
  * @param game - NFL game object
  * @param userTeam - The team the user is betting on

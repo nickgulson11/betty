@@ -109,6 +109,8 @@ Analyze the message and extract:
 
 IMPORTANT: You do NOT need to determine which team the opponent gets. The opponent automatically gets the other team in the game. Only extract the team the INITIATOR is betting on.
 
+NOTE: "ML" stands for "MoneyLine" in gambling terminology - it just means a standard bet on who wins. Ignore "ML" when parsing - it doesn't affect the bet details.
+
 Return a JSON object with this exact structure:
 {
   "confidence": "high" | "low" | "unclear",

@@ -2,7 +2,7 @@ import { App } from '@slack/bolt';
 import dotenv from 'dotenv';
 import { parseBetIntent, extractAllUserMentions, detectQueryIntent } from '../services/claudeService';
 import { normalizeTeamName, findGameForTeam, getOpponentTeam } from '../services/nbaService';
-import { normalizeNFLTeamName, findGameForNFLTeam, getOpponentTeam as getNFLOpponentTeam } from '../services/nflService';
+import { normalizeNFLTeamName, findGameForNFLTeam, findNextNFLGame, getOpponentTeam as getNFLOpponentTeam } from '../services/nflService';
 import {
   createPendingBet,
   updateBetMessageTs,
@@ -210,14 +210,26 @@ app.event('app_mention', async ({ event, say, client }) => {
         return;
       }
 
-      // Parse timing to determine game date
-      const estimatedGameDate = parseTimingToDate(parsedBet.timing || 'tonight');
-
       // Look up the actual game from ESPN API based on sport
-      console.log(`🔍 Looking up ${sport} game for ${normalizedTeam} on ${estimatedGameDate.toDateString()}...`);
-      const actualGame = sport === 'NBA Basketball'
-        ? await findGameForTeam(normalizedTeam, estimatedGameDate)
-        : await findGameForNFLTeam(normalizedTeam, estimatedGameDate);
+      let actualGame;
+
+      if (sport === 'NBA Basketball') {
+        // NBA: Use timing to determine game date
+        const estimatedGameDate = parseTimingToDate(parsedBet.timing || 'tonight');
+        console.log(`🔍 Looking up NBA game for ${normalizedTeam} on ${estimatedGameDate.toDateString()}...`);
+        actualGame = await findGameForTeam(normalizedTeam, estimatedGameDate);
+      } else {
+        // NFL: If no specific timing, find next upcoming game
+        if (!parsedBet.timing || parsedBet.timing === 'tonight' || parsedBet.timing === 'today') {
+          console.log(`🔍 Looking up next NFL game for ${normalizedTeam}...`);
+          actualGame = await findNextNFLGame(normalizedTeam);
+        } else {
+          // Specific timing provided, use it
+          const estimatedGameDate = parseTimingToDate(parsedBet.timing);
+          console.log(`🔍 Looking up NFL game for ${normalizedTeam} on ${estimatedGameDate.toDateString()}...`);
+          actualGame = await findGameForNFLTeam(normalizedTeam, estimatedGameDate);
+        }
+      }
 
       // Determine opponent team and actual game time
       let opponentTeam: string;
@@ -232,9 +244,13 @@ app.event('app_mention', async ({ event, say, client }) => {
         console.log(`✅ Found game: ${actualGame.away_team} @ ${actualGame.home_team} at ${gameDate.toLocaleString()}`);
       } else {
         // No game found - reject the bet
-        console.log(`❌ No game found for ${normalizedTeam} on ${estimatedGameDate.toDateString()}`);
+        const timingText = sport === 'NFL Football' && (!parsedBet.timing || parsedBet.timing === 'tonight' || parsedBet.timing === 'today')
+          ? 'in the next 14 days'
+          : parsedBet.timing || 'tonight';
+
+        console.log(`❌ No game found for ${normalizedTeam}`);
         await say({
-          text: `😏 Nice try, but the ${normalizedTeam} aren't playing ${parsedBet.timing || 'tonight'}. Can't bet on a game that doesn't exist, genius. Check the schedule and come back when you've got a real game!`,
+          text: `😏 Nice try, but the ${normalizedTeam} aren't playing ${timingText}. Can't bet on a game that doesn't exist, genius. Check the schedule and come back when you've got a real game!`,
           thread_ts: threadTs,
         });
         return;
