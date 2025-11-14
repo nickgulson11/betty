@@ -2,6 +2,7 @@ import { App } from '@slack/bolt';
 import dotenv from 'dotenv';
 import { parseBetIntent, extractAllUserMentions, detectQueryIntent } from '../services/claudeService';
 import { normalizeTeamName, findGameForTeam, getOpponentTeam } from '../services/nbaService';
+import { normalizeNFLTeamName, findGameForNFLTeam, getOpponentTeam as getNFLOpponentTeam } from '../services/nflService';
 import {
   createPendingBet,
   updateBetMessageTs,
@@ -166,8 +167,32 @@ app.event('app_mention', async ({ event, say, client }) => {
 
     // High confidence - create the bet
     if (parsedBet.team) {
-      const normalizedTeam = normalizeTeamName(parsedBet.team);
-      console.log(`🏀 Normalized team: ${parsedBet.team} → ${normalizedTeam}`);
+      // Determine sport by trying to normalize team name for both NBA and NFL
+      const nbaTeam = normalizeTeamName(parsedBet.team);
+      const nflTeam = normalizeNFLTeamName(parsedBet.team);
+
+      let sport: 'NBA Basketball' | 'NFL Football' | null = null;
+      let normalizedTeam: string;
+
+      // Check which sport this team belongs to
+      if (nbaTeam !== parsedBet.team) {
+        // NBA team found (normalizeTeamName returns original if not found)
+        sport = 'NBA Basketball';
+        normalizedTeam = nbaTeam;
+        console.log(`🏀 NBA team detected: ${parsedBet.team} → ${normalizedTeam}`);
+      } else if (nflTeam !== null) {
+        // NFL team found
+        sport = 'NFL Football';
+        normalizedTeam = nflTeam;
+        console.log(`🏈 NFL team detected: ${parsedBet.team} → ${normalizedTeam}`);
+      } else {
+        // Team not recognized in either sport
+        await say({
+          text: `🤔 I couldn't determine which sport. Please mention 'NFL' or 'NBA' in your bet, or use a recognized team name.`,
+          thread_ts: threadTs,
+        });
+        return;
+      }
 
       // Determine opponent ID
       let opponentId: string | null = null;
@@ -186,9 +211,11 @@ app.event('app_mention', async ({ event, say, client }) => {
       // Parse timing to determine game date
       const estimatedGameDate = parseTimingToDate(parsedBet.timing || 'tonight');
 
-      // Look up the actual game from ESPN API
-      console.log(`🔍 Looking up game for ${normalizedTeam} on ${estimatedGameDate.toDateString()}...`);
-      const actualGame = await findGameForTeam(normalizedTeam, estimatedGameDate);
+      // Look up the actual game from ESPN API based on sport
+      console.log(`🔍 Looking up ${sport} game for ${normalizedTeam} on ${estimatedGameDate.toDateString()}...`);
+      const actualGame = sport === 'NBA Basketball'
+        ? await findGameForTeam(normalizedTeam, estimatedGameDate)
+        : await findGameForNFLTeam(normalizedTeam, estimatedGameDate);
 
       // Determine opponent team and actual game time
       let opponentTeam: string;
@@ -196,7 +223,9 @@ app.event('app_mention', async ({ event, say, client }) => {
 
       if (actualGame) {
         // Use actual game data from ESPN
-        opponentTeam = getOpponentTeam(actualGame, normalizedTeam);
+        opponentTeam = sport === 'NBA Basketball'
+          ? getOpponentTeam(actualGame, normalizedTeam)
+          : getNFLOpponentTeam(actualGame, normalizedTeam);
         gameDate = actualGame.start_time;
         console.log(`✅ Found game: ${actualGame.away_team} @ ${actualGame.home_team} at ${gameDate.toLocaleString()}`);
       } else {
@@ -255,7 +284,7 @@ app.event('app_mention', async ({ event, say, client }) => {
 
       // Create pending bet in database
       console.log('💾 Creating pending bet in database...');
-      const bet = await createPendingBet(betDetails, slackContext);
+      const bet = await createPendingBet(betDetails, slackContext, sport);
 
       // Post confirmation message
       const confirmationText = formatConfirmationMessage(bet);
@@ -448,11 +477,11 @@ app.event('reaction_added', async ({ event, client }) => {
       console.log('🧪 Testing mode: Allowing initiator to react');
     }
 
-    // Check if game has already started
+    // Check if game has already started (skip check in testing mode)
     const now = new Date();
     const gameDate = new Date(bet.game_date);
 
-    if (gameDate <= now) {
+    if (gameDate <= now && !isTestingMode) {
       console.log(`⚠️  Game has already started - cannot accept bet ${bet.id}`);
       const gameStartedMessage = isPersonalityModeEnabled()
         ? getPersonalityGameStartedMessage()
@@ -466,6 +495,10 @@ app.event('reaction_added', async ({ event, client }) => {
       // Update bet to cancelled
       await updateBetStatus(bet.id, 'cancelled');
       return;
+    }
+
+    if (isTestingMode && gameDate <= now) {
+      console.log('🧪 Testing mode: Allowing bet on live/past game');
     }
 
     // Handle acceptance (thumbs up)

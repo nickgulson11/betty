@@ -1,9 +1,12 @@
 export type BetStatus = 'pending' | 'active' | 'settled' | 'declined' | 'cancelled';
 
+export type Sport = 'NBA Basketball' | 'NFL Football' | 'NCAA Basketball' | 'NCAA Football';
+
 export interface Bet {
   id: string;
   created_at: Date;
   status: BetStatus;
+  sport: Sport;
   initiator_slack_id: string;
   initiator_name?: string;
   opponent_slack_id: string;
@@ -59,6 +62,15 @@ export interface SlackContext {
 }
 
 export interface NBAGame {
+  id: string;
+  home_team: string;
+  away_team: string;
+  game_date: Date;
+  start_time: Date;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'postponed';
+}
+
+export interface NFLGame {
   id: string;
   home_team: string;
   away_team: string;

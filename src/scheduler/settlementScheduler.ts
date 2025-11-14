@@ -80,6 +80,8 @@ async function cleanupExpiredPendingBets(): Promise<void> {
  */
 async function postExpiredBetMessage(bet: Bet): Promise<void> {
   try {
+    const sportEmoji = bet.sport === 'NFL Football' ? '🏈' : '🏀';
+
     await app.client.chat.postMessage({
       token: process.env.SLACK_BOT_TOKEN,
       channel: bet.slack_channel_id,
@@ -91,7 +93,7 @@ This bet was never accepted and the game has already started.
 <@${bet.initiator_slack_id}> vs <@${bet.opponent_slack_id}>
 ${bet.initiator_team} vs ${bet.opponent_team}
 
-Better luck next time! 🏀`
+Better luck next time! ${sportEmoji}`
     });
 
     console.log(`✅ Posted expired bet message for bet ${bet.id}`);
@@ -102,7 +104,9 @@ Better luck next time! 🏀`
 
 /**
  * Get active bets that are ready for settlement
- * (game time + 90 minutes has passed)
+ * Sport-specific timing:
+ * - NBA Basketball: game time + 90 minutes
+ * - NFL Football: game time + 180 minutes (3 hours)
  */
 async function getActiveBetsReadyForSettlement(): Promise<Bet[]> {
   const pool = getPool();
@@ -110,7 +114,13 @@ async function getActiveBetsReadyForSettlement(): Promise<Bet[]> {
   const query = `
     SELECT * FROM bets
     WHERE status = 'active'
-    AND game_date + INTERVAL '90 minutes' < NOW()
+    AND game_date + (
+      CASE
+        WHEN sport = 'NBA Basketball' THEN INTERVAL '90 minutes'
+        WHEN sport = 'NFL Football' THEN INTERVAL '180 minutes'
+        ELSE INTERVAL '90 minutes'
+      END
+    ) < NOW()
     AND settled_at IS NULL
     ORDER BY game_date ASC
   `;
@@ -122,6 +132,7 @@ async function getActiveBetsReadyForSettlement(): Promise<Bet[]> {
       id: row.id,
       created_at: row.created_at,
       status: row.status,
+      sport: row.sport,
       initiator_slack_id: row.initiator_slack_id,
       opponent_slack_id: row.opponent_slack_id,
       initiator_team: row.initiator_team,

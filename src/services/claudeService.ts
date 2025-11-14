@@ -96,13 +96,15 @@ export async function parseBetIntent(
   const prompt = `You are analyzing a message from a Slack betting bot conversation. Extract betting details from this message.
 
 Message: "${messageText}"
-Current date and time in US Eastern Time (NBA schedule timezone): ${dateStr} at ${timeStr}
+Current date and time in US Eastern Time: ${dateStr} at ${timeStr}
 IMPORTANT: When interpreting "tonight" or "today", use the date ${etDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' })}. When interpreting "tomorrow", use ${new Date(etDate.getTime() + 24*60*60*1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}.${initiatorPrompt}${contextPrompt}
+
+The bot supports both NBA Basketball and NFL Football bets.
 
 Analyze the message and extract:
 1. Who they're betting against (opponent) - look for @mentions or names (NOT the initiator!)
-2. Which team the initiator is betting on
-3. When the game is ("tonight", "tomorrow", specific date)
+2. Which team the initiator is betting on (can be NBA or NFL team)
+3. When the game is ("tonight", "tomorrow", "Sunday", specific date)
 4. What the stakes are (money amount, "bragging rights", etc.)
 
 IMPORTANT: You do NOT need to determine which team the opponent gets. The opponent automatically gets the other team in the game. Only extract the team the INITIATOR is betting on.

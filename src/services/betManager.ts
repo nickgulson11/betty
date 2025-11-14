@@ -1,4 +1,4 @@
-import { Bet, BetDetails, SlackContext } from '../types/bet';
+import { Bet, BetDetails, SlackContext, Sport } from '../types/bet';
 import { getPool } from '../models/database';
 import {
   isPersonalityModeEnabled,
@@ -53,17 +53,20 @@ export async function checkDuplicateBet(
  * Create a pending bet in the database
  * @param betDetails - Parsed bet details
  * @param slackContext - Slack channel/thread context
+ * @param sport - The sport for this bet
  * @returns Created bet record
  */
 export async function createPendingBet(
   betDetails: BetDetails,
-  slackContext: SlackContext
+  slackContext: SlackContext,
+  sport: Sport
 ): Promise<Bet> {
   const pool = getPool();
 
   const query = `
     INSERT INTO bets (
       status,
+      sport,
       initiator_slack_id,
       initiator_name,
       opponent_slack_id,
@@ -75,12 +78,13 @@ export async function createPendingBet(
       slack_channel_id,
       slack_thread_ts,
       settlement_attempts
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *
   `;
 
   const values = [
     'pending',
+    sport,
     betDetails.initiator_id,
     betDetails.initiator_name,
     betDetails.opponent_id,
@@ -108,6 +112,7 @@ export async function createPendingBet(
       id: bet.id,
       created_at: bet.created_at,
       status: bet.status,
+      sport: bet.sport,
       initiator_slack_id: bet.initiator_slack_id,
       initiator_name: bet.initiator_name,
       opponent_slack_id: bet.opponent_slack_id,
@@ -194,6 +199,7 @@ export async function getBetByMessageTs(
       id: bet.id,
       created_at: bet.created_at,
       status: bet.status,
+      sport: bet.sport,
       initiator_slack_id: bet.initiator_slack_id,
       initiator_name: bet.initiator_name,
       opponent_slack_id: bet.opponent_slack_id,
@@ -376,6 +382,7 @@ export async function getOpenBetsByUsers(userIds: string[]): Promise<Bet[]> {
       id: row.id,
       created_at: row.created_at,
       status: row.status,
+      sport: row.sport,
       initiator_slack_id: row.initiator_slack_id,
       initiator_name: row.initiator_name,
       opponent_slack_id: row.opponent_slack_id,
@@ -421,6 +428,7 @@ export async function getExpiredPendingBets(): Promise<Bet[]> {
       id: row.id,
       created_at: row.created_at,
       status: row.status,
+      sport: row.sport,
       initiator_slack_id: row.initiator_slack_id,
       initiator_name: row.initiator_name,
       opponent_slack_id: row.opponent_slack_id,
