@@ -91,9 +91,11 @@ app.event('app_mention', async ({ event, say, client }) => {
       console.log(`   Found ${openBets.length} open bets`);
       const formattedList = formatOpenBetsList(openBets);
 
-      await say({
-        text: formattedList,
+      await client.chat.postMessage({
+        channel: event.channel,
         thread_ts: threadTs,
+        reply_broadcast: true,  // Also send to main channel
+        text: formattedList,
       });
 
       return;
