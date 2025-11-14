@@ -104,10 +104,12 @@ The bot supports both NBA Basketball and NFL Football bets.
 Analyze the message and extract:
 1. Who they're betting against (opponent) - look for @mentions or names (NOT the initiator!)
 2. Which team the initiator is betting on (can be NBA or NFL team)
-3. When the game is ("tonight", "tomorrow", "Sunday", specific date)
+3. When the game is ("tonight", "tomorrow", "Sunday", specific date) - OPTIONAL for NFL teams
 4. What the stakes are (money amount, "bragging rights", etc.)
 
 IMPORTANT: You do NOT need to determine which team the opponent gets. The opponent automatically gets the other team in the game. Only extract the team the INITIATOR is betting on.
+
+IMPORTANT: For NFL teams, timing is OPTIONAL. If no timing is specified, the system will automatically find the team's next upcoming game. Do NOT mark timing as missing_info for NFL teams.
 
 NOTE: "ML" stands for "MoneyLine" in gambling terminology - it just means a standard bet on who wins. Ignore "ML" when parsing - it doesn't affect the bet details.
 
@@ -124,21 +126,23 @@ Return a JSON object with this exact structure:
 }
 
 Guidelines:
-- confidence "high": All critical info present (opponent, team, timing). Stakes can be missing - they default to "bragging rights".
-- confidence "low": Missing critical info (opponent, team, or timing) but bet intent is clear
+- confidence "high": All critical info present (opponent, team). Timing and stakes are OPTIONAL.
+- confidence "low": Missing critical info (opponent or team) but bet intent is clear
 - confidence "unclear": Not enough info to understand the bet, or no bet intent detected
-- missing_info: Array of what's missing (e.g., ["opponent", "team", "timing"]). Do NOT include "stakes" in missing_info unless explicitly asked about.
-- clarifying_question: If confidence is not "high", provide a natural question to ask in Slack. NEVER ask which team the opponent gets - they automatically get the opposing team.
-- For team names, preserve the exact text from the message (e.g., "Lakers", "Warriors")
-- Timing should be normalized (e.g., "tonight", "tomorrow", "2024-11-07")
+- missing_info: Array of what's missing (e.g., ["opponent", "team"]). Do NOT include "timing" or "stakes" in missing_info - they are always optional.
+- clarifying_question: If confidence is not "high", provide a natural question to ask in Slack. NEVER ask which team the opponent gets - they automatically get the opposing team. NEVER ask about timing.
+- For team names, preserve the exact text from the message (e.g., "Lakers", "Warriors", "Chiefs", "Bears")
+- If timing is provided, normalize it (e.g., "tonight", "tomorrow", "Sunday", "2024-11-07")
 - Leave opponent_team as null - it will be determined automatically from the game matchup
 
 Special cases:
 - If message doesn't seem to be about betting at all, return confidence "unclear" with missing_info ["no_bet_intent"]
 - Look for @mentions in format <@U12345> or @username for opponent
 - If stakes are not mentioned, leave stakes as null - they will default to "bragging rights"
+- If timing is not mentioned, leave timing as null - the system will find the next game automatically
 - DO NOT try to determine the initiator - we already know it's the message sender
 - DO NOT ask which team the opponent gets - they automatically get the other team in the matchup
+- DO NOT ask about timing - it's always optional
 
 Return ONLY the JSON object, no other text.`;
 
