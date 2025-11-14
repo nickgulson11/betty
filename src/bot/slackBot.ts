@@ -105,7 +105,7 @@ app.event('app_mention', async ({ event, say, client }) => {
     if (queryIntent.type === 'general_chat') {
       const welcomeMessage = isPersonalityModeEnabled()
         ? getPersonalityWelcomeMessage()
-        : `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nTo check your bets:\n"@betty what bets do I have open?"\n\nLet's get betting! 🏀`;
+        : `Hey there! 👋 I'm Betty, your betting bot for NBA and NFL games!\n\n**Examples:**\n🏀 NBA: "@betty I bet @friend that the Lakers win tonight for $5"\n🏈 NFL: "@betty I bet @friend on the Chiefs game"\n\n**Check your bets:**\n"@betty what bets do I have open?"\n\nLet's get betting! 🏀🏈`;
 
       await client.chat.postMessage({
         channel: event.channel,
@@ -127,7 +127,7 @@ app.event('app_mention', async ({ event, say, client }) => {
       // User is just chatting, not making a bet
       const welcomeMessage = isPersonalityModeEnabled()
         ? getPersonalityWelcomeMessage()
-        : `Hey there! 👋 I'm Betty, your betting bot for NBA games!\n\nTo make a bet, mention me with something like:\n"@betty I bet @friend that the Lakers win tonight for $5"\n\nOr just:\n"I bet @friend Lakers win tonight"`;
+        : `Hey there! 👋 I'm Betty, your betting bot for NBA and NFL games!\n\n**Examples:**\n🏀 NBA: "@betty I bet @friend that the Lakers win tonight for $5"\n🏈 NFL: "@betty I bet @friend on the Chiefs game"\n\nNo date needed for NFL - I'll find their next game!`;
 
       await client.chat.postMessage({
         channel: event.channel,

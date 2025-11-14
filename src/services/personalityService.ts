@@ -216,22 +216,22 @@ export function getPersonalityGameStartedMessage(): string {
 const WELCOME_TEMPLATES = [
   `👋 *What's good, youngblood?*
 
-I'm Betty, and I run the bets around here 💰🏀
+I'm Betty, and I run the bets around here 💰🏀🏈
 
 Want to make a bet? Hit me with:
-"@betty I bet @friend $10 that the Warriors will win tonight"
-"@betty I bet @friend that the Bulls will win tomorrow"
+🏀 "@betty I bet @friend $10 that the Warriors will win tonight"
+🏈 "@betty I bet @friend on the Chiefs game"
 
 Check your bets:
 "@betty what bets do I have open?"`,
 
   `👋 *Hey there, playa*
 
-I'm Betty - your NBA betting bot 💰🏀
+I'm Betty - your NBA and NFL betting bot 💰🏀🏈
 
 Make a bet like:
-"@betty I bet @friend $10 that the Warriors will win tonight"
-"@betty I bet @friend that the Bulls will win tomorrow"
+🏀 "@betty I bet @friend that the Lakers win tonight"
+🏈 "@betty I bet @friend on the Chiefs game"
 
 Check your action:
 "@betty show my bets"`,
