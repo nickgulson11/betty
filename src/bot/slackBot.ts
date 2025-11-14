@@ -87,14 +87,24 @@ app.event('app_mention', async ({ event, say, client }) => {
 
       // Fetch and display open bets
       console.log('   Final user IDs to query:', userIdsToQuery);
-      const openBets = await getOpenBetsByUsers(userIdsToQuery);
+      let openBets = await getOpenBetsByUsers(userIdsToQuery);
       console.log(`   Found ${openBets.length} open bets`);
-      const formattedList = formatOpenBetsList(openBets);
+
+      // Get channel members to filter bets
+      const channelMembers = await getChannelMembers(client, event.channel as string);
+      const channelMemberSet = new Set(channelMembers);
+
+      // Filter to only show bets where BOTH initiator AND opponent are in the channel
+      const filteredBets = openBets.filter(bet =>
+        channelMemberSet.has(bet.initiator_slack_id) &&
+        channelMemberSet.has(bet.opponent_slack_id)
+      );
+
+      console.log(`   After filtering for channel members: ${filteredBets.length} bets`);
+      const formattedList = formatOpenBetsList(filteredBets);
 
       await client.chat.postMessage({
         channel: event.channel,
-        thread_ts: threadTs,
-        reply_broadcast: true,  // Also send to main channel
         text: formattedList,
       });
 
@@ -109,8 +119,6 @@ app.event('app_mention', async ({ event, say, client }) => {
 
       await client.chat.postMessage({
         channel: event.channel,
-        thread_ts: threadTs,
-        reply_broadcast: true,  // Also send to main channel
         text: welcomeMessage,
       });
       return;
@@ -131,8 +139,6 @@ app.event('app_mention', async ({ event, say, client }) => {
 
       await client.chat.postMessage({
         channel: event.channel,
-        thread_ts: threadTs,
-        reply_broadcast: true,  // Also send to main channel
         text: welcomeMessage,
       });
       return;
