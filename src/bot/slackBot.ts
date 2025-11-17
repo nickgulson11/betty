@@ -545,8 +545,11 @@ app.event('reaction_added', async ({ event, client }) => {
       console.log('🧪 Testing mode: Allowing bet on live/past game');
     }
 
-    // Handle acceptance (thumbs up)
-    if (event.reaction === '+1') {
+    // Handle acceptance (thumbs up - all skin tone variants)
+    // Slack thumbs up can be: +1, +1::skin-tone-2, +1::skin-tone-3, +1::skin-tone-4, +1::skin-tone-5, +1::skin-tone-6
+    const isThumbsUp = event.reaction === '+1' || event.reaction.startsWith('+1::skin-tone-');
+
+    if (isThumbsUp) {
       console.log(`✅ Bet ${bet.id} accepted by opponent`);
 
       // Update bet status to active

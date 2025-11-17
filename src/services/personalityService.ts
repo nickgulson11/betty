@@ -66,7 +66,10 @@ That means <@${bet.opponent_slack_id}> gets the *${bet.opponent_team}*
 
 <@${bet.opponent_slack_id}> - 👍 = you got the ${bet.opponent_team} | ❌ = no faith`,
 
-  (bet: Bet) => `🎯 *Bet incoming, chief*
+  (bet: Bet) => {
+    const sportEmoji = bet.sport === 'NFL Football' ? '🏈' : '🏀';
+    const sportKnowledge = bet.sport === 'NFL Football' ? 'knows football' : 'knows ball';
+    return `🎯 *Bet incoming, chief*
 
 <@${bet.initiator_slack_id}> backing the *${bet.initiator_team}* to win against the *${bet.opponent_team}*
 <@${bet.opponent_slack_id}> gets the *${bet.opponent_team}* side
@@ -74,7 +77,8 @@ That means <@${bet.opponent_slack_id}> gets the *${bet.opponent_team}*
 📅 Game: ${bet.initiator_team} vs ${bet.opponent_team}, ${formatGameTime(bet.game_date)}
 💰 Stakes: ${bet.stakes}
 
-We'll see who knows ball 🏀 <@${bet.opponent_slack_id}> - 👍 or ❌?`,
+We'll see who ${sportKnowledge} ${sportEmoji} <@${bet.opponent_slack_id}> - 👍 or ❌?`;
+  },
 ];
 
 export function getPersonalityConfirmationMessage(bet: Bet): string {
@@ -93,11 +97,15 @@ const ACCEPTANCE_TEMPLATES = [
 
 Game's ${formatGameTime(bet.game_date)}. I'll be back with the results... and the receipts 📸🔥`,
 
-  (bet: Bet) => `🔒 *Bet's official, youngbloods!*
+  (bet: Bet) => {
+    const sportEmoji = bet.sport === 'NFL Football' ? '🏈' : '🏀';
+    const sportAction = bet.sport === 'NFL Football' ? 'run up the score' : 'break some ankles';
+    return `🔒 *Bet's official, youngbloods!*
 
 <@${bet.initiator_slack_id}> and <@${bet.opponent_slack_id}> really doing this. One of y'all is getting COOKED ${formatGameTime(bet.game_date)} 🔥
 
-See you after the game to break some ankles 🏀💸`,
+See you after the game to ${sportAction} ${sportEmoji}💸`;
+  },
 
   (bet: Bet) => `✅ *Locked in, no backing out now!*
 
@@ -105,11 +113,14 @@ See you after the game to break some ankles 🏀💸`,
 
 I'll be watching this one, playa. Can't wait to see who's eating ${formatGameTime(bet.game_date)} 👀`,
 
-  (bet: Bet) => `🎲 *BET CONFIRMED*
+  (bet: Bet) => {
+    const sportKnowledge = bet.sport === 'NFL Football' ? 'knows football' : 'knows ball';
+    return `🎲 *BET CONFIRMED*
 
-<@${bet.initiator_slack_id}> and <@${bet.opponent_slack_id}> got money on the line. One of y'all knows ball, one of y'all is about to learn 📚💀
+<@${bet.initiator_slack_id}> and <@${bet.opponent_slack_id}> got money on the line. One of y'all ${sportKnowledge}, one of y'all is about to learn 📚💀
 
-Results coming after the game ${formatGameTime(bet.game_date)} - stay tuned, fam 🍿`,
+Results coming after the game ${formatGameTime(bet.game_date)} - stay tuned, fam 🍿`;
+  },
 ];
 
 export function getPersonalityAcceptanceMessage(bet: Bet): string {
@@ -138,13 +149,13 @@ Playa really backed out?? It's giving scared 😬 That's embarrassing, chief.
 
 Out here declining bets now? Cap. Straight cap 🧢
 
-<@${initiatorId}>, this one's clearly not ready for the big leagues. Try again with someone who's got game 🏀`,
+<@${initiatorId}>, this one's clearly not ready for the big leagues. Try again with someone who's got game`,
 
   (initiatorId: string, _opponentId: string, declinerId: string) => `🚫 *Bet declined by <@${declinerId}>* 🚫
 
-Probably for the best, youngblood clearly doesn't know ball anyway 💀
+Probably for the best, youngblood clearly doesn't know the game anyway 💀
 
-<@${initiatorId}>, find someone who actually watches the games 🏀📺`,
+<@${initiatorId}>, find someone who actually watches the games 📺`,
 ];
 
 export function getPersonalityDeclineMessage(initiatorId: string, opponentId: string, declinerId: string): string {
@@ -194,13 +205,13 @@ That's what we call "caught lacking" 💀`,
 
   `⚠️ *Nah youngblood, we don't do that here*
 
-Game's already tipping off - no late bets allowed. You snooze, you lose 🏀⏰
+Game's already started - no late bets allowed. You snooze, you lose ⏰
 
 Better luck next time, fam 💅`,
 
   `🚫 *Clock ran out, playa*
 
-Game's already underway - can't accept bets after tip-off. That's the rules 🤷
+Game's already underway - can't accept bets after the game starts. That's the rules 🤷
 
 Should've been quicker on that thumbs up, chief 👍⚡`,
 ];
@@ -344,9 +355,19 @@ export async function generatePersonalitySettlementMessage(
   const winnerTeam = winnerId === bet.initiator_slack_id ? bet.initiator_team : bet.opponent_team;
   const loserTeam = winnerId === bet.initiator_slack_id ? bet.opponent_team : bet.initiator_team;
 
-  const prompt = `You are Betty, a sassy, confident, flirty, no-filter NBA betting bot for Slack. You're announcing the results of a bet and you need to be HARSH to the loser while celebrating the winner.
+  const sportType = bet.sport === 'NFL Football' ? 'NFL' : 'NBA';
+  const sportEmoji = bet.sport === 'NFL Football' ? '🏈' : '🏀';
+  const sportKnowledge = bet.sport === 'NFL Football' ? 'knows football' : 'knows ball';
+  const sportNoKnowledge = bet.sport === 'NFL Football' ? "doesn't know football" : "doesn't know ball";
+  const sportAction = bet.sport === 'NFL Football' ? 'ran up the score' : 'broke ankles';
+  const sportSlang = bet.sport === 'NFL Football'
+    ? '"sacked", "getting lit up", "running up the score", "got exposed", "defense was trash", "offense couldn\'t move the ball"'
+    : '"breaking ankles", "cooked", "getting crossed up", "dropping dimes", "no defense"';
+
+  const prompt = `You are Betty, a sassy, confident, flirty, no-filter ${sportType} betting bot for Slack. You're announcing the results of a bet and you need to be HARSH to the loser while celebrating the winner.
 
 **Bet Details:**
+- Sport: ${bet.sport}
 - Winner: <@${winnerId}> (${winnerName}) - had ${winnerTeam}
 - Loser: <@${winnerId === bet.initiator_slack_id ? bet.opponent_slack_id : bet.initiator_slack_id}> (${loserName}) - had ${loserTeam}
 - Final Score: ${finalScore}
@@ -356,18 +377,19 @@ export async function generatePersonalitySettlementMessage(
 **Your Personality:**
 - Sassy, confident, flirty, no filter
 - Harsh to losers - this is the moment to roast them hard
-- Uses slang: "youngblood", "guurl", "playa", "honey", "chief", "fam", "knows ball", "doesn't know ball", "breaking ankles", "cooked", "burnt", "down bad", "taking Ls", "ate", "folded", "cap", etc.
+- Uses general slang: "youngblood", "guurl", "playa", "honey", "chief", "fam", "burnt", "down bad", "taking Ls", "ate", "folded", "cap", etc.
+- Uses ${sportType}-specific slang: ${sportSlang}
 - Reference the actual score and make contextual jokes
 - Be genuinely mean to the loser but keep it fun/entertaining
 - Celebrate winner confidently
 
 **Requirements:**
-1. Start with an attention-grabbing header with emojis
-2. Announce the winner and that they "broke ankles" or similar
+1. Start with an attention-grabbing header with emojis (use ${sportEmoji} emoji for ${sportType})
+2. Announce the winner and that they "${sportAction}" or similar ${sportType}-appropriate phrase
 3. Show the final score
-4. Roast the loser HARD - question their basketball knowledge, call them out
+4. Roast the loser HARD - question their ${sportType} knowledge, call them out
 5. Mention the stakes and celebrate the winner
-6. Use slang naturally throughout
+6. Use slang naturally throughout, making sure to use ${sportType}-specific terminology
 7. Keep it under 150 words
 8. Use Slack mention format: <@${winnerId}> for winner, <@${winnerId === bet.initiator_slack_id ? bet.opponent_slack_id : bet.initiator_slack_id}> for loser
 
@@ -393,13 +415,17 @@ Generate ONLY the settlement message, no other text or explanation.`;
   } catch (error) {
     console.error('Error generating personality settlement message:', error);
     // Fallback to a template if Claude fails
+    const sportEmoji = bet.sport === 'NFL Football' ? '🏈' : '🏀';
+    const sportKnowledge = bet.sport === 'NFL Football' ? 'knows football' : 'knows ball';
+    const sportNoKnowledge = bet.sport === 'NFL Football' ? "doesn't" : "doesn't";
+
     return `🏆 *WINNER: <@${winnerId}>* 🏆
 
 ${winnerTeam} came through! Final: ${finalScore}
 
 <@${winnerId === bet.initiator_slack_id ? bet.opponent_slack_id : bet.initiator_slack_id}> really thought ${loserTeam} had this? That's embarrassing, honey 💀
 
-<@${winnerId}> knows ball. <@${winnerId === bet.initiator_slack_id ? bet.opponent_slack_id : bet.initiator_slack_id}> doesn't. Simple as that 🏀🔥`;
+<@${winnerId}> ${sportKnowledge}. <@${winnerId === bet.initiator_slack_id ? bet.opponent_slack_id : bet.initiator_slack_id}> ${sportNoKnowledge}. Simple as that ${sportEmoji}🔥`;
   }
 }
 
