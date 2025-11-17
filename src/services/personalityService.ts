@@ -357,8 +357,6 @@ export async function generatePersonalitySettlementMessage(
 
   const sportType = bet.sport === 'NFL Football' ? 'NFL' : 'NBA';
   const sportEmoji = bet.sport === 'NFL Football' ? '🏈' : '🏀';
-  const sportKnowledge = bet.sport === 'NFL Football' ? 'knows football' : 'knows ball';
-  const sportNoKnowledge = bet.sport === 'NFL Football' ? "doesn't know football" : "doesn't know ball";
   const sportAction = bet.sport === 'NFL Football' ? 'ran up the score' : 'broke ankles';
   const sportSlang = bet.sport === 'NFL Football'
     ? '"sacked", "getting lit up", "running up the score", "got exposed", "defense was trash", "offense couldn\'t move the ball"'
