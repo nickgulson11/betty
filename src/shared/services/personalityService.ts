@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { Bet } from '../types/bet';
+import { Bet } from '../../types/bet';
 
 /**
  * Check if personality mode is enabled

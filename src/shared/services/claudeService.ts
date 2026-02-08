@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ParsedBet, ConversationState } from '../types/bet';
+import { ParsedBet, ConversationState } from '../../types/bet';
 
 let anthropic: Anthropic | null = null;
 
