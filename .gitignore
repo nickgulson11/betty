@@ -31,6 +31,24 @@ coverage/
 *.tmp
 .cache/
 
-# Documentation (local only)
+# Documentation (local only - don't push to GitHub)
 betty_design_doc.docx
 ~$*.docx
+
+# Images (local only)
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# SQL test files (local only)
+create_test_bet.sql
+get_slack_ids.sql
+
+# Old implementation plan (replaced by docs/)
+implementation_plan.md
+
+# Note: Old src/ directories (bot/, models/, scheduler/, services/, utils/)
+# are kept temporarily for reference during migration.
+# These are duplicated in src/betting/ and src/shared/.
+# TODO: Remove old directories after Phase 2 is complete and tested.
