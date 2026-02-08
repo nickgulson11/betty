@@ -1,13 +1,18 @@
 import dotenv from 'dotenv';
-import { testConnection } from './models/database';
-import { startSlackBot, stopSlackBot } from './bot/slackBot';
-import { startSettlementScheduler, stopSettlementScheduler } from './scheduler/settlementScheduler';
+import { testConnection } from './shared/models/database';
+import { getMode, getModeName } from './config/mode';
 
 // Load environment variables
 dotenv.config();
 
 async function main() {
   console.log('🤖 Betty Bot Starting...\n');
+
+  // Display current mode
+  const mode = getMode();
+  const modeName = getModeName();
+  console.log(`📍 Mode: ${mode.toUpperCase()}`);
+  console.log(`   ${modeName}\n`);
 
   // Check environment variables
   console.log('📋 Checking environment variables...');
@@ -47,41 +52,61 @@ async function main() {
     process.exit(1);
   }
 
-  // Start Slack bot
   const port = parseInt(process.env.PORT || '3000', 10);
-  console.log('\n🚀 Starting Slack bot...');
-  await startSlackBot(port);
 
-  // Start settlement scheduler
-  console.log('\n⏰ Starting settlement scheduler...');
-  startSettlementScheduler();
+  // Route to appropriate mode
+  if (mode === 'betting') {
+    console.log('\n🎲 Starting Betting Bot Mode...\n');
 
-  console.log('\n' + '='.repeat(50));
-  console.log('✅ Betty is ready to accept bets!');
-  console.log('='.repeat(50));
-  console.log(`\n💡 Next steps:`);
-  console.log(`   1. Start ngrok: ngrok http ${port}`);
-  console.log(`   2. Copy the ngrok URL (https://....ngrok-free.app)`);
-  console.log(`   3. Go to Slack API dashboard > Event Subscriptions`);
-  console.log(`   4. Set Request URL to: https://your-ngrok-url/slack/events`);
-  console.log(`   5. Subscribe to: app_mention, reaction_added`);
-  console.log(`   6. Mention @betty in your Slack workspace!\n`);
+    const { startSlackBot, stopSlackBot } = await import('./betting/bot/slackBot');
+    const { startSettlementScheduler, stopSettlementScheduler } = await import('./betting/scheduler/settlementScheduler');
+
+    // Start Slack bot
+    console.log('🚀 Starting Slack bot...');
+    await startSlackBot(port);
+
+    // Start settlement scheduler
+    console.log('⏰ Starting settlement scheduler...');
+    startSettlementScheduler();
+
+    console.log('\n' + '='.repeat(50));
+    console.log('✅ Betty is ready to accept bets!');
+    console.log('='.repeat(50));
+    console.log(`\n💡 Next steps:`);
+    console.log(`   1. Start ngrok: ngrok http ${port}`);
+    console.log(`   2. Copy the ngrok URL (https://....ngrok-free.app)`);
+    console.log(`   3. Go to Slack API dashboard > Event Subscriptions`);
+    console.log(`   4. Set Request URL to: https://your-ngrok-url/slack/events`);
+    console.log(`   5. Subscribe to: app_mention, reaction_added`);
+    console.log(`   6. Mention @betty in your Slack workspace!\n`);
+
+    // Graceful shutdown handlers
+    const shutdown = async () => {
+      console.log('\n🛑 Shutting down gracefully...');
+      stopSettlementScheduler();
+      await stopSlackBot();
+      process.exit(0);
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+
+  } else if (mode === 'march_madness') {
+    console.log('\n🏀 Starting March Madness Pool Mode...\n');
+
+    // TODO: Implement March Madness bot
+    console.log('⚠️  March Madness mode is under construction!');
+    console.log('   For now, switch to betting mode by setting BETTY_MODE=betting\n');
+
+    // Placeholder - will implement in next phase
+    console.log('✅ Betty March Madness placeholder running');
+    console.log(`   Server would run on port ${port}\n`);
+
+  } else {
+    console.error(`❌ Unknown mode: ${mode}`);
+    process.exit(1);
+  }
 }
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  stopSettlementScheduler();
-  await stopSlackBot();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  stopSettlementScheduler();
-  await stopSlackBot();
-  process.exit(0);
-});
 
 main().catch((error) => {
   console.error('❌ Error starting Betty:', error);
