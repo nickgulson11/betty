@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import * as participantModel from '../../models/participant';
 import * as poolModel from '../../models/pool';
 import { CreateParticipantInput, UpdateParticipantInput } from '../../types/participant';
+import { sendWelcomeDM, getUserInfo } from '../../services/slackMessaging';
 
 const router = express.Router();
 
@@ -122,17 +123,41 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Create participant
-    const participant = await participantModel.createParticipant(input);
+    // Get pool info for welcome message
+    const pool = await poolModel.getPoolById(input.pool_id);
 
-    // If paid flag was provided and true, mark as paid immediately
-    if (req.body.paid === true) {
-      const updated = await participantModel.updateParticipant(participant.id, { paid: true });
-      res.status(201).json(updated);
+    if (!pool) {
+      res.status(404).json({ error: 'Pool not found' });
       return;
     }
 
-    res.status(201).json(participant);
+    // Get user info from Slack (to store username)
+    const userInfo = await getUserInfo(input.slack_user_id);
+
+    // Create participant with username if available
+    const participantWithUsername: CreateParticipantInput = {
+      ...input,
+      slack_username: userInfo?.realName || userInfo?.name,
+    };
+
+    const participant = await participantModel.createParticipant(participantWithUsername);
+
+    // If paid flag was provided and true, mark as paid immediately
+    if (req.body.paid === true) {
+      await participantModel.updateParticipant(participant.id, { paid: true });
+    }
+
+    // Send welcome DM to the participant
+    const welcomeSent = await sendWelcomeDM(input.slack_user_id, pool.name);
+
+    if (!welcomeSent) {
+      console.warn(`Failed to send welcome DM to ${input.slack_user_id}`);
+    }
+
+    // Get the updated participant (with paid status if applicable)
+    const updatedParticipant = await participantModel.getParticipantById(participant.id);
+
+    res.status(201).json(updatedParticipant);
   } catch (error) {
     console.error('Error creating participant:', error);
     res.status(500).json({ error: 'Failed to create participant' });

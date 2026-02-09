@@ -1,9 +1,7 @@
 import express, { Request, Response } from 'express';
+import { sendDM, sendMainChannelMessage } from '../../services/slackMessaging';
 
 const router = express.Router();
-
-// We'll implement the Slack messaging service later
-// For now, this is a placeholder that logs the message
 
 /**
  * POST /api/betty/message
@@ -27,19 +25,39 @@ router.post('/message', async (req: Request, res: Response) => {
       return;
     }
 
-    // TODO: Implement actual Slack messaging in Phase 3
-    // For now, just log and return success
     console.log('📬 Betty Message (Admin):', {
       destination,
       target,
       message,
     });
 
-    res.json({
-      success: true,
-      message: 'Message sent successfully (stubbed for now)',
-      details: { destination, target, messageLength: message.length },
-    });
+    let success = false;
+
+    if (destination === 'channel') {
+      // Send to main channel
+      success = await sendMainChannelMessage(message);
+    } else if (destination === 'dm') {
+      // Send DM to specific user
+      success = await sendDM(target, message);
+    } else {
+      res.status(400).json({
+        error: 'Invalid destination. Must be "channel" or "dm"',
+      });
+      return;
+    }
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Message sent successfully',
+        details: { destination, target, messageLength: message.length },
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send message to Slack',
+      });
+    }
   } catch (error) {
     console.error('Error sending Betty message:', error);
     res.status(500).json({ error: 'Failed to send message' });

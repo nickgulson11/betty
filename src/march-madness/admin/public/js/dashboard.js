@@ -311,24 +311,34 @@ async function deletePick(id) {
 
 // Pool Settings
 async function loadPoolSettings() {
-  if (!currentPool) {
+  // Always fetch fresh pool data to avoid using cached values
+  try {
     currentPool = await api.getPool();
+  } catch (error) {
+    console.error('Error fetching pool:', error);
+    alert('Failed to load pool settings');
+    return;
   }
 
   document.getElementById('pool-name').value = currentPool.name;
   document.getElementById('pool-round').value = currentPool.current_round || '';
-  document.getElementById('pool-status').value = currentPool.status;
+  document.getElementById('pool-status-select').value = currentPool.status;
   document.getElementById('pool-entry-fee').value = currentPool.entry_fee || '';
 }
 
 async function updatePool() {
+  // Read values directly from form inputs
   const name = document.getElementById('pool-name').value;
   const current_round = document.getElementById('pool-round').value || null;
-  const status = document.getElementById('pool-status').value;
+  const status = document.getElementById('pool-status-select').value;
   const entry_fee = parseFloat(document.getElementById('pool-entry-fee').value) || null;
 
+  console.log('Updating pool with:', { name, current_round, status, entry_fee }); // Debug log
+
   try {
-    await api.updatePool(currentPool.id, { name, current_round, status, entry_fee });
+    const updated = await api.updatePool(currentPool.id, { name, current_round, status, entry_fee });
+    console.log('Pool updated:', updated); // Debug log
+    currentPool = updated; // Update local cache with fresh data
     alert('Pool settings updated');
     loadDashboard();
   } catch (error) {
