@@ -378,19 +378,10 @@ async function clearPool() {
   const confirmed = confirm(
     '⚠️ WARNING: This will DELETE ALL participants and picks from this pool!\n\n' +
     'This action CANNOT be undone.\n\n' +
-    'Are you absolutely sure you want to continue?'
+    'Are you sure you want to continue?'
   );
 
   if (!confirmed) {
-    return;
-  }
-
-  // Double confirmation
-  const doubleConfirmed = confirm(
-    'Final confirmation: Delete all participants and picks?'
-  );
-
-  if (!doubleConfirmed) {
     return;
   }
 
@@ -525,7 +516,7 @@ async function sendBettyMessage() {
 
   try {
     await api.sendMessage(destination, message, target);
-    alert('Message sent successfully (stubbed for now)');
+    alert('✅ Message sent successfully!');
     document.getElementById('message-content').value = '';
     document.getElementById('message-participant').value = '';
     document.getElementById('message-target').value = '';
@@ -581,7 +572,7 @@ async function handleSendBettyMessage(e) {
 
   try {
     await api.sendMessage(destination, message);
-    alert('Message sent successfully (stubbed for now)');
+    alert('✅ Message sent successfully!');
     closeModal('betty-message-modal');
     document.getElementById('betty-message-form').reset();
   } catch (error) {
