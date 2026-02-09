@@ -105,3 +105,13 @@ export async function getAllPools(): Promise<Pool[]> {
   const result = await pool.query('SELECT * FROM pools ORDER BY created_at DESC');
   return result.rows;
 }
+
+/**
+ * Clear all participants and picks from a pool (for testing)
+ * This will delete all participants (and cascade to picks due to foreign key)
+ */
+export async function clearPoolData(poolId: string): Promise<void> {
+  // Delete all participants for this pool
+  // This will cascade delete all picks due to ON DELETE CASCADE constraint
+  await pool.query('DELETE FROM participants WHERE pool_id = $1', [poolId]);
+}

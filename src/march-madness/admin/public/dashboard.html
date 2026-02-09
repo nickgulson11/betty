@@ -89,6 +89,7 @@
 
         <div class="view-controls">
           <button class="btn btn-primary" onclick="showAddParticipantModal()">➕ Add Participant</button>
+          <button class="btn" onclick="syncChannelMembers()" style="background: #28a745; color: white;">🔄 Sync Channel Members</button>
           <div class="filter-group">
             <label>Filter:</label>
             <select id="participant-filter" onchange="filterParticipants()">
@@ -244,6 +245,14 @@
           </div>
 
           <button class="btn btn-primary" onclick="updatePool()">💾 Save Settings</button>
+
+          <hr style="margin: 30px 0; border: 1px solid #e0e0e0;">
+
+          <div style="background: #fff3cd; padding: 15px; border-radius: 5px; border: 1px solid #ffc107;">
+            <h3 style="margin-top: 0; color: #856404;">⚠️ Testing Tools</h3>
+            <p style="margin-bottom: 15px; color: #856404;">Warning: These actions are destructive and cannot be undone!</p>
+            <button class="btn" onclick="clearPool()" style="background: #dc3545; color: white;">🗑️ Clear All Participants & Picks</button>
+          </div>
         </div>
       </div>
     </main>

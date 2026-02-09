@@ -63,6 +63,15 @@ export async function submitPick(
       };
     }
 
+    // Check if participant has paid
+    if (!participant.paid) {
+      return {
+        success: false,
+        message: 'You must pay the entry fee before submitting picks. Please contact the pool admin to complete payment.',
+        error: 'PAYMENT_REQUIRED',
+      };
+    }
+
     // Get current round
     const currentRound = pool.current_round;
 

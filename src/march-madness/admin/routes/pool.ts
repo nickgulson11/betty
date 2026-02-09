@@ -151,4 +151,26 @@ router.post('/advance', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/pool/:id/clear
+ * Clear all participants and picks from a pool (for testing)
+ * WARNING: This is destructive and cannot be undone
+ */
+router.post('/:id/clear', async (req: Request, res: Response) => {
+  try {
+    const poolId = req.params.id;
+
+    // Delete all picks for this pool (cascade will handle this via participant deletion, but being explicit)
+    await poolModel.clearPoolData(poolId);
+
+    res.json({
+      success: true,
+      message: 'Pool cleared successfully. All participants and picks have been deleted.'
+    });
+  } catch (error) {
+    console.error('Error clearing pool:', error);
+    res.status(500).json({ error: 'Failed to clear pool' });
+  }
+});
+
 export default router;

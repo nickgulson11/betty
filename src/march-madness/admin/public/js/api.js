@@ -48,6 +48,7 @@ const api = {
   getPool: () => apiRequest('/pool'),
   updatePool: (id, data) => apiRequest(`/pool/${id}`, 'PUT', data),
   advanceRound: (poolId, nextRound) => apiRequest('/pool/advance', 'POST', { poolId, nextRound }),
+  clearPool: (id) => apiRequest(`/pool/${id}/clear`, 'POST'),
 
   // Participants
   getParticipants: () => apiRequest('/participants'),
@@ -59,6 +60,7 @@ const api = {
   deleteParticipant: (id) => apiRequest(`/participants/${id}`, 'DELETE'),
   markPaid: (id) => apiRequest(`/participants/${id}/paid`, 'POST'),
   eliminateParticipant: (id, reason, round) => apiRequest(`/participants/${id}/eliminate`, 'POST', { reason, round }),
+  syncChannelMembers: () => apiRequest('/participants/sync', 'POST'),
 
   // Picks
   getPicks: () => apiRequest('/picks'),

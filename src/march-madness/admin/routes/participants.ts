@@ -3,6 +3,7 @@ import * as participantModel from '../../models/participant';
 import * as poolModel from '../../models/pool';
 import { CreateParticipantInput, UpdateParticipantInput } from '../../types/participant';
 import { sendWelcomeDM, getUserInfo } from '../../services/slackMessaging';
+import { syncChannelMembers } from '../../services/channelSync';
 
 const router = express.Router();
 
@@ -143,15 +144,19 @@ router.post('/', async (req: Request, res: Response) => {
     const participant = await participantModel.createParticipant(participantWithUsername);
 
     // If paid flag was provided and true, mark as paid immediately
+    let isPaid = false;
     if (req.body.paid === true) {
       await participantModel.updateParticipant(participant.id, { paid: true });
+      isPaid = true;
     }
 
-    // Send welcome DM to the participant
-    const welcomeSent = await sendWelcomeDM(input.slack_user_id, pool.name);
+    // Only send welcome DM if participant is paid
+    if (isPaid) {
+      const welcomeSent = await sendWelcomeDM(input.slack_user_id, pool.name);
 
-    if (!welcomeSent) {
-      console.warn(`Failed to send welcome DM to ${input.slack_user_id}`);
+      if (!welcomeSent) {
+        console.warn(`Failed to send welcome DM to ${input.slack_user_id}`);
+      }
     }
 
     // Get the updated participant (with paid status if applicable)
@@ -207,7 +212,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
 /**
  * POST /api/participants/:id/paid
- * Mark participant as paid
+ * Mark participant as paid and send welcome DM
  */
 router.post('/:id/paid', async (req: Request, res: Response) => {
   try {
@@ -216,6 +221,18 @@ router.post('/:id/paid', async (req: Request, res: Response) => {
     if (!participant) {
       res.status(404).json({ error: 'Participant not found' });
       return;
+    }
+
+    // Get pool info for welcome message
+    const pool = await poolModel.getPoolById(participant.pool_id);
+
+    if (pool) {
+      // Send welcome DM now that they're paid
+      const welcomeSent = await sendWelcomeDM(participant.slack_user_id, pool.name);
+
+      if (!welcomeSent) {
+        console.warn(`Failed to send welcome DM to ${participant.slack_user_id}`);
+      }
     }
 
     res.json(participant);
@@ -248,6 +265,40 @@ router.post('/:id/eliminate', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error eliminating participant:', error);
     res.status(500).json({ error: 'Failed to eliminate participant' });
+  }
+});
+
+/**
+ * POST /api/participants/sync
+ * Sync all members from pool's Slack channel as unpaid participants
+ * Only adds new members, doesn't remove existing participants
+ */
+router.post('/sync', async (_req: Request, res: Response) => {
+  try {
+    // Get current pool
+    const pool = await poolModel.getCurrentPool();
+
+    if (!pool) {
+      res.status(404).json({ error: 'No active pool found' });
+      return;
+    }
+
+    if (!pool.slack_channel_id) {
+      res.status(400).json({ error: 'Pool does not have a slack_channel_id configured' });
+      return;
+    }
+
+    // Sync channel members
+    const result = await syncChannelMembers(pool.id, pool.slack_channel_id);
+
+    res.json({
+      success: true,
+      message: `Synced ${result.newParticipants} new participants from channel`,
+      result,
+    });
+  } catch (error) {
+    console.error('Error syncing channel members:', error);
+    res.status(500).json({ error: 'Failed to sync channel members' });
   }
 });
 

@@ -192,6 +192,28 @@ Total Picks: ${picks.length}`);
   }
 }
 
+async function syncChannelMembers() {
+  if (!confirm('Sync all members from the Slack channel as unpaid participants?\n\nThis will add any new members who are not already in the pool.')) {
+    return;
+  }
+
+  try {
+    const result = await api.syncChannelMembers();
+
+    const message = `✅ Sync Complete!\n\n` +
+      `Total channel members: ${result.result.totalMembers}\n` +
+      `New participants added: ${result.result.newParticipants}\n` +
+      `Already in pool: ${result.result.existingParticipants}` +
+      (result.result.errors.length > 0 ? `\n\nErrors: ${result.result.errors.length}` : '');
+
+    alert(message);
+    loadParticipants();
+  } catch (error) {
+    console.error('Error syncing channel members:', error);
+    alert('Failed to sync channel members');
+  }
+}
+
 async function markParticipantPaid(id) {
   if (!confirm('Mark this participant as paid?')) return;
 
@@ -344,6 +366,41 @@ async function updatePool() {
   } catch (error) {
     console.error('Error updating pool:', error);
     alert('Failed to update pool settings');
+  }
+}
+
+async function clearPool() {
+  if (!currentPool) {
+    alert('No pool loaded');
+    return;
+  }
+
+  const confirmed = confirm(
+    '⚠️ WARNING: This will DELETE ALL participants and picks from this pool!\n\n' +
+    'This action CANNOT be undone.\n\n' +
+    'Are you absolutely sure you want to continue?'
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  // Double confirmation
+  const doubleConfirmed = confirm(
+    'Final confirmation: Delete all participants and picks?'
+  );
+
+  if (!doubleConfirmed) {
+    return;
+  }
+
+  try {
+    await api.clearPool(currentPool.id);
+    alert('✅ Pool cleared successfully. All participants and picks have been deleted.');
+    loadDashboard();
+  } catch (error) {
+    console.error('Error clearing pool:', error);
+    alert('Failed to clear pool');
   }
 }
 
