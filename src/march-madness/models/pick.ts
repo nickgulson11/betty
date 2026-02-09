@@ -54,12 +54,11 @@ export async function getPickById(id: string): Promise<Pick | null> {
  */
 export async function createOrUpdatePick(input: CreatePickInput): Promise<Pick> {
   const result = await pool.query(
-    `INSERT INTO picks (participant_id, pool_id, round, team_name, team_seed, result)
-     VALUES ($1, $2, $3, $4, $5, 'pending')
+    `INSERT INTO picks (participant_id, pool_id, round, team_name, result)
+     VALUES ($1, $2, $3, $4, 'pending')
      ON CONFLICT (participant_id, round)
      DO UPDATE SET
        team_name = EXCLUDED.team_name,
-       team_seed = EXCLUDED.team_seed,
        updated_at = NOW()
      RETURNING *`,
     [
@@ -67,7 +66,6 @@ export async function createOrUpdatePick(input: CreatePickInput): Promise<Pick> 
       input.pool_id,
       input.round,
       input.team_name,
-      input.team_seed || null,
     ]
   );
 
@@ -85,10 +83,6 @@ export async function updatePick(id: string, input: UpdatePickInput): Promise<Pi
   if (input.team_name !== undefined) {
     updates.push(`team_name = $${paramCount++}`);
     values.push(input.team_name);
-  }
-  if (input.team_seed !== undefined) {
-    updates.push(`team_seed = $${paramCount++}`);
-    values.push(input.team_seed);
   }
   if (input.result !== undefined) {
     updates.push(`result = $${paramCount++}`);

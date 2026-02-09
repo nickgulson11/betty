@@ -1,13 +1,13 @@
 # Betty March Madness - Project Progress Tracker
 
-**Last Updated:** February 8, 2025
+**Last Updated:** February 9, 2025
 
 ---
 
 ## 🎯 Overall Status
 
-**Current Phase:** Phase 2 Complete ✅
-**Next Phase:** Phase 3 - Participant Experience
+**Current Phase:** Phase 3 - In Progress 🚧
+**Next Phase:** Phase 4 - Tournament Automation
 **Target Launch:** March 2025 (March Madness Tournament)
 
 ---
@@ -73,29 +73,57 @@
 
 ---
 
-## 📋 Phase 3: Participant Experience (NOT STARTED)
+## 🚧 Phase 3: Participant Experience (IN PROGRESS)
 
-**Target Start:** After Phase 2
+**Started:** February 9, 2025
+**Status:** 🚧 Deploying to Railway
 **Estimated Duration:** 2-3 sessions
 
+### Tasks Completed:
+- [x] ✅ Slack messaging service (`src/march-madness/services/slackMessaging.ts`)
+  - Send DMs to participants
+  - Send messages to main channel (uses pool's `slack_channel_id`)
+  - Pre-built message templates (welcome, confirmations, errors, reminders)
+- [x] ✅ Betty Chat console integration (updated `src/march-madness/admin/routes/betty.ts`)
+  - Admin can send real DMs and channel messages
+  - Works with both "channel" and "dm" destinations
+- [x] ✅ Welcome DMs when participants added (updated `src/march-madness/admin/routes/participants.ts`)
+  - Auto-sends welcome DM with instructions
+  - Fetches and stores participant's Slack username
+- [x] ✅ Pick Manager service (`src/march-madness/services/pickManager.ts`)
+  - Submit picks with full validation
+  - Check pool is active, participant is registered
+  - Prevent team reuse (can't pick same team twice)
+  - Update picks before deadline
+  - Auto-send confirmation DMs
+- [x] ✅ Slack Bot DM handler (updated `src/march-madness/bot/slackBot.ts`)
+  - Listen to DMs for pick submission
+  - Commands: team name to submit, `help`, `my pick`, `status`
+  - Error handling with user-friendly messages
+- [x] ✅ Fixed admin console bug (duplicate ID for pool-status)
+  - Changed dropdown ID to `pool-status-select`
+  - Pool status updates now work correctly
+
 ### Tasks Remaining:
+- [ ] **Deploy to Railway and test pick submission flow**
+- [ ] Deadline reminder notifications (scheduled job)
+- [ ] Reaction-based registration (users react to join as unpaid)
 
-**Deployment Prerequisites:**
-- [ ] Update package.json build script to auto-copy public files
-- [ ] Push Phase 2 code to GitHub
-- [ ] Deploy to Railway with `BETTY_MODE=march_madness`
-- [ ] Configure Railway environment variables (ADMIN_PASSWORD, ADMIN_PORT)
-- [ ] Configure Slack Event Subscriptions with Railway URL
+### Files Created/Modified:
+**New Files:**
+- `src/march-madness/services/slackMessaging.ts` - Slack DM and channel messaging
+- `src/march-madness/services/pickManager.ts` - Pick submission and validation
 
-**Participant Experience Features:**
-- [ ] DM event handlers (pick submission)
-- [ ] Pick validation logic
-- [ ] Team availability checking
-- [ ] Confirmation messages
-- [ ] Pick update system (before deadline)
-- [ ] Welcome DMs to new participants
-- [ ] Deadline reminders
-- [ ] Reaction-based registration (users react to join pool as unpaid)
+**Modified Files:**
+- `src/march-madness/bot/slackBot.ts` - Added DM handlers for pick submission
+- `src/march-madness/admin/routes/betty.ts` - Connected to real Slack messaging
+- `src/march-madness/admin/routes/participants.ts` - Auto-send welcome DMs
+- `src/march-madness/admin/public/dashboard.html` - Fixed duplicate pool-status ID
+- `src/march-madness/admin/public/js/dashboard.js` - Fixed pool update bug, added debug logging
+
+### Known Issues:
+- ✅ Fixed: Pool status update sending cached value (duplicate ID issue)
+- ⏳ Pending test: Full pick submission flow (deploying to Railway now)
 
 ---
 
@@ -189,17 +217,17 @@
 
 | Phase | Status | Completion Date | Duration |
 |-------|--------|-----------------|----------|
-| Phase 1: Foundation | ✅ Complete | Feb 8, 2026 | 1 session |
-| Phase 2: Admin Console | ✅ Complete | Feb 9, 2026 | 1 session |
-| Phase 3: Participant Experience | ⏳ Planned | TBD | ~2-3 sessions |
+| Phase 1: Foundation | ✅ Complete | Feb 8, 2025 | 1 session |
+| Phase 2: Admin Console | ✅ Complete | Feb 9, 2025 | 1 session |
+| Phase 3: Participant Experience | 🚧 In Progress | TBD | ~2-3 sessions |
 | Phase 4: Tournament Automation | ⏳ Planned | TBD | ~2-3 sessions |
 | Phase 5: Announcements | ⏳ Planned | TBD | ~1-2 sessions |
 | Phase 6: Testing | ⏳ Planned | TBD | ~1-2 sessions |
-| Phase 7: Launch | ⏳ Planned | Mid-March 2026 | ~1 session |
+| Phase 7: Launch | ⏳ Planned | Mid-March 2025 | ~1 session |
 
-**Total Estimated Time Remaining:** 8-13 sessions (~16-26 hours)
+**Total Estimated Time Remaining:** 7-12 sessions (~14-24 hours)
 
 ---
 
-**Last Session:** February 9, 2026 - Completed Phase 2
-**Next Session:** TBD - Start Phase 3 (Participant Experience)
+**Last Session:** February 9, 2025 - Phase 3 In Progress (Pick Submission System)
+**Next Session:** TBD - Complete Phase 3 Testing + Deadline Reminders + Reaction Registration

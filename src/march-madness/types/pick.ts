@@ -8,7 +8,6 @@ export interface Pick {
   pool_id: string;
   round: TournamentRound;
   team_name: string;
-  team_seed: number | null;
   result: PickResult | null;
   submitted_at: Date;
   updated_at: Date;
@@ -19,11 +18,9 @@ export interface CreatePickInput {
   pool_id: string;
   round: TournamentRound;
   team_name: string;
-  team_seed?: number;
 }
 
 export interface UpdatePickInput {
   team_name?: string;
-  team_seed?: number;
   result?: PickResult;
 }
