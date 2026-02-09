@@ -1,12 +1,21 @@
-import { App } from '@slack/bolt';
+import { App, ExpressReceiver } from '@slack/bolt';
+import { setupAdminRoutes } from '../admin/server';
 
 export async function startMarchMadnessBot(port: number): Promise<void> {
   console.log('🏀 March Madness Bot starting...');
 
+  // Create Express receiver so we can add custom routes
+  const receiver = new ExpressReceiver({
+    signingSecret: process.env.SLACK_SIGNING_SECRET!,
+  });
+
   const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
-    signingSecret: process.env.SLACK_SIGNING_SECRET,
+    receiver,
   });
+
+  // Setup admin routes on the same Express app
+  setupAdminRoutes(receiver.app);
 
   // Placeholder message handler
   app.message(async ({ message, say }) => {
@@ -21,5 +30,6 @@ export async function startMarchMadnessBot(port: number): Promise<void> {
 
   // Start the app
   await app.start(port);
-  console.log(`⚡️ March Madness Slack bot is running on port ${port}!`);
+  console.log(`⚡️ March Madness bot running on port ${port}!`);
+  console.log(`🔐 Admin console available at /admin`);
 }

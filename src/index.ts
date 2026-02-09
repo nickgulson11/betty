@@ -94,41 +94,19 @@ async function main() {
   } else if (mode === 'march_madness') {
     console.log('\n🏀 Starting March Madness Pool Mode...\n');
 
-    console.log('📦 Loading admin server module...');
-    const { startAdminServer } = await import('./march-madness/admin/server');
-    console.log('✅ Admin server module loaded');
-
-    // Start admin server FIRST (doesn't depend on Slack)
-    const adminPort = parseInt(process.env.ADMIN_PORT || '3001', 10);
-    console.log('🔐 Starting Admin Console...');
-    await startAdminServer(adminPort);
-
-    // Load Slack bot module separately (after admin is running)
-    console.log('📦 Loading Slack bot module...');
     const { startMarchMadnessBot } = await import('./march-madness/bot/slackBot');
-    console.log('✅ Slack bot module loaded');
 
-    // Start Slack bot in background (non-blocking)
-    console.log('🚀 Starting March Madness Slack bot (this may take a moment)...');
-    startMarchMadnessBot(port)
-      .then(() => {
-        console.log('✅ Slack bot connected successfully!');
-      })
-      .catch((error) => {
-        console.error('⚠️  Slack bot failed to connect (admin console still working):', error.message);
-        console.log('   Admin console is still available at http://localhost:' + adminPort + '/admin');
-      });
+    // Start unified server (Slack bot + admin console on same port)
+    await startMarchMadnessBot(port);
 
     console.log('\n' + '='.repeat(50));
-    console.log('✅ Betty March Madness Admin Console is ready!');
+    console.log('✅ Betty March Madness is ready!');
     console.log('='.repeat(50));
-    console.log(`\n💡 Admin Console:`);
-    console.log(`   🌐 URL: http://localhost:${adminPort}/admin`);
-    console.log(`   🔑 Password: ${process.env.ADMIN_PASSWORD || 'changeme'}`);
-    console.log(`\n💡 Slack Bot:`);
-    console.log(`   ⏳ Connecting in background...`);
-    console.log(`   📡 Will listen on port ${port} when ready`);
-    console.log(`   💡 Tip: For local testing, admin console works without Slack\n`);
+    console.log(`\n💡 Running on port ${port}:`);
+    console.log(`   🏀 Slack Bot: /slack/events`);
+    console.log(`   🔐 Admin Console: /admin`);
+    console.log(`   📡 API: /api`);
+    console.log(`   🔑 Admin Password: ${process.env.ADMIN_PASSWORD || 'changeme'}\n`);
 
   } else {
     console.error(`❌ Unknown mode: ${mode}`);

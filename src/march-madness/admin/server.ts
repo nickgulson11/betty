@@ -10,9 +10,7 @@ import participantRoutes from './routes/participants';
 import pickRoutes from './routes/picks';
 import bettyRoutes from './routes/betty';
 
-export async function startAdminServer(port: number): Promise<void> {
-  const app = express();
-
+export function setupAdminRoutes(app: express.Application): void {
   // Middleware
   app.use(express.json());
   app.use(cors());
@@ -35,12 +33,8 @@ export async function startAdminServer(port: number): Promise<void> {
 
   // Health check
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'Betty March Madness Admin' });
+    res.json({ status: 'ok', service: 'Betty March Madness' });
   });
 
-  // Start server
-  app.listen(port, () => {
-    console.log(`🔐 Admin console running at http://localhost:${port}/admin`);
-    console.log(`📡 API endpoint: http://localhost:${port}/api`);
-  });
+  console.log('✅ Admin routes configured');
 }
