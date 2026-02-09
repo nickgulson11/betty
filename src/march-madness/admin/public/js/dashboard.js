@@ -370,11 +370,59 @@ function loadTemplate() {
 function toggleMessageTarget() {
   const destination = document.getElementById('message-destination').value;
   const targetGroup = document.getElementById('target-group');
+  const manualTargetGroup = document.getElementById('manual-target-group');
 
   if (destination === 'dm') {
     targetGroup.style.display = 'block';
+    manualTargetGroup.style.display = 'block';
+    loadParticipantsForMessage();
   } else {
     targetGroup.style.display = 'none';
+    manualTargetGroup.style.display = 'none';
+  }
+}
+
+function toggleManualTarget() {
+  const isManual = document.getElementById('manual-target-checkbox').checked;
+  const participantSelect = document.getElementById('message-participant');
+  const manualInput = document.getElementById('message-target');
+
+  if (isManual) {
+    participantSelect.disabled = true;
+    participantSelect.value = '';
+    manualInput.style.display = 'block';
+  } else {
+    participantSelect.disabled = false;
+    manualInput.style.display = 'none';
+    manualInput.value = '';
+  }
+}
+
+async function loadParticipantsForMessage() {
+  try {
+    const participants = await api.getParticipants();
+    const select = document.getElementById('message-participant');
+
+    select.innerHTML = '<option value="">-- Select Participant --</option>';
+
+    participants.forEach((p) => {
+      const option = document.createElement('option');
+      option.value = p.slack_user_id;
+      option.textContent = `${p.slack_username || p.slack_user_id} (${p.status})`;
+      select.appendChild(option);
+    });
+  } catch (error) {
+    console.error('Error loading participants for message:', error);
+  }
+}
+
+function updateTargetFromParticipant() {
+  const participantId = document.getElementById('message-participant').value;
+  const manualInput = document.getElementById('message-target');
+
+  // Update the hidden target input with selected participant's Slack ID
+  if (participantId) {
+    manualInput.value = participantId;
   }
 }
 
@@ -385,7 +433,17 @@ function updateMessagePreview() {
 
 async function sendBettyMessage() {
   const destination = document.getElementById('message-destination').value;
-  const target = document.getElementById('message-target').value;
+  const isManual = document.getElementById('manual-target-checkbox')?.checked;
+  let target = document.getElementById('message-target').value;
+
+  // If not manual, get from participant dropdown
+  if (destination === 'dm' && !isManual) {
+    const participantId = document.getElementById('message-participant').value;
+    if (participantId) {
+      target = participantId;
+    }
+  }
+
   const message = document.getElementById('message-content').value;
 
   if (!message) {
@@ -394,7 +452,7 @@ async function sendBettyMessage() {
   }
 
   if (destination === 'dm' && !target) {
-    alert('Target Slack User ID is required for DM');
+    alert('Please select a participant or enter a Slack User ID for DM');
     return;
   }
 
@@ -402,6 +460,10 @@ async function sendBettyMessage() {
     await api.sendMessage(destination, message, target);
     alert('Message sent successfully (stubbed for now)');
     document.getElementById('message-content').value = '';
+    document.getElementById('message-participant').value = '';
+    document.getElementById('message-target').value = '';
+    document.getElementById('manual-target-checkbox').checked = false;
+    toggleManualTarget();
     updateMessagePreview();
   } catch (error) {
     console.error('Error sending message:', error);

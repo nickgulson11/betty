@@ -63,7 +63,7 @@
         <div class="quick-actions">
           <h3>Quick Actions</h3>
           <button class="btn btn-primary" onclick="showAddParticipantModal()">➕ Add Participant</button>
-          <button class="btn btn-primary" onclick="showBettyMessageModal()">💬 Send Betty Message</button>
+          <button class="btn btn-primary" onclick="navigateTo('betty')">💬 Send Betty Message</button>
           <button class="btn btn-secondary" onclick="refreshDashboard()">🔄 Refresh Data</button>
         </div>
 
@@ -168,8 +168,18 @@
             </div>
 
             <div class="form-group" id="target-group" style="display: none;">
-              <label>Target (Slack User ID)</label>
-              <input type="text" id="message-target" placeholder="U0123456789">
+              <label>Select Participant</label>
+              <select id="message-participant" onchange="updateTargetFromParticipant()">
+                <option value="">-- Select Participant --</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="manual-target-group" style="display: none;">
+              <label>
+                <input type="checkbox" id="manual-target-checkbox" onchange="toggleManualTarget()" style="width: auto; margin-right: 8px;">
+                Or manually enter Slack ID
+              </label>
+              <input type="text" id="message-target" placeholder="U0123456789" style="margin-top: 8px; display: none;">
             </div>
 
             <div class="form-group">
