@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Betty Admin - Dashboard</title>
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <h1>🏀 Betty Admin Console</h1>
+    </div>
+    <div class="nav-right">
+      <span id="admin-info">Admin</span>
+      <button id="logout-btn" class="btn btn-secondary">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <aside class="sidebar">
+      <ul class="nav-menu">
+        <li><a href="#" data-page="dashboard" class="active">📊 Dashboard</a></li>
+        <li><a href="#" data-page="participants">👥 Participants</a></li>
+        <li><a href="#" data-page="picks">📝 Picks</a></li>
+        <li><a href="#" data-page="betty">💬 Betty Chat</a></li>
+        <li><a href="#" data-page="pool">⚙️ Pool Settings</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <!-- Dashboard View -->
+      <div id="dashboard-view" class="view active">
+        <h2>Pool Overview</h2>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="total-participants">0</div>
+            <div class="stat-label">Total Participants</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="active-participants">0</div>
+            <div class="stat-label">Still Alive</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="eliminated-participants">0</div>
+            <div class="stat-label">Eliminated</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="current-round">-</div>
+            <div class="stat-label">Current Round</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="pool-status">-</div>
+            <div class="stat-label">Pool Status</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="picks-submitted">0/0</div>
+            <div class="stat-label">Picks Submitted</div>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <h3>Quick Actions</h3>
+          <button class="btn btn-primary" onclick="showAddParticipantModal()">➕ Add Participant</button>
+          <button class="btn btn-primary" onclick="showBettyMessageModal()">💬 Send Betty Message</button>
+          <button class="btn btn-secondary" onclick="refreshDashboard()">🔄 Refresh Data</button>
+        </div>
+
+        <div class="recent-activity">
+          <h3>Recent Participants</h3>
+          <table id="recent-participants-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Status</th>
+                <th>Paid</th>
+                <th>Joined</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Participants View -->
+      <div id="participants-view" class="view">
+        <h2>Participants Management</h2>
+
+        <div class="view-controls">
+          <button class="btn btn-primary" onclick="showAddParticipantModal()">➕ Add Participant</button>
+          <div class="filter-group">
+            <label>Filter:</label>
+            <select id="participant-filter" onchange="filterParticipants()">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="eliminated">Eliminated</option>
+              <option value="withdrawn">Withdrawn</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="participants-table">
+          <thead>
+            <tr>
+              <th>Slack ID</th>
+              <th>Username</th>
+              <th>Status</th>
+              <th>Paid</th>
+              <th>Eliminated Round</th>
+              <th>Eliminated Team</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Picks View -->
+      <div id="picks-view" class="view">
+        <h2>Picks Management</h2>
+
+        <div class="view-controls">
+          <div class="filter-group">
+            <label>Round:</label>
+            <select id="round-filter" onchange="filterPicks()">
+              <option value="Round of 64">Round of 64</option>
+              <option value="Round of 32">Round of 32</option>
+              <option value="Sweet Sixteen">Sweet Sixteen</option>
+              <option value="Elite Eight">Elite Eight</option>
+              <option value="Final Four">Final Four</option>
+              <option value="Championship">Championship</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" onclick="loadPicksSummary()">📊 View Summary</button>
+        </div>
+
+        <table id="picks-table">
+          <thead>
+            <tr>
+              <th>Participant</th>
+              <th>Round</th>
+              <th>Team</th>
+              <th>Seed</th>
+              <th>Result</th>
+              <th>Submitted At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Betty Chat View -->
+      <div id="betty-view" class="view">
+        <h2>Betty Chat Console</h2>
+
+        <div class="betty-chat-container">
+          <div class="message-form">
+            <h3>Send Custom Message</h3>
+
+            <div class="form-group">
+              <label>Destination</label>
+              <select id="message-destination" onchange="toggleMessageTarget()">
+                <option value="channel">Main Channel</option>
+                <option value="dm">Direct Message</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="target-group" style="display: none;">
+              <label>Target (Slack User ID)</label>
+              <input type="text" id="message-target" placeholder="U0123456789">
+            </div>
+
+            <div class="form-group">
+              <label>Message</label>
+              <textarea id="message-content" rows="5" placeholder="Enter Betty's message..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Or choose a template:</label>
+              <select id="message-template" onchange="loadTemplate()">
+                <option value="">-- Select Template --</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary" onclick="sendBettyMessage()">📤 Send Message</button>
+          </div>
+
+          <div class="message-preview">
+            <h3>Preview</h3>
+            <div id="message-preview-content" class="preview-box">
+              <em>Message preview will appear here...</em>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pool Settings View -->
+      <div id="pool-view" class="view">
+        <h2>Pool Settings</h2>
+
+        <div class="settings-form">
+          <div class="form-group">
+            <label>Pool Name</label>
+            <input type="text" id="pool-name" placeholder="March Madness 2025">
+          </div>
+
+          <div class="form-group">
+            <label>Current Round</label>
+            <select id="pool-round">
+              <option value="">Not Started</option>
+              <option value="Round of 64">Round of 64</option>
+              <option value="Round of 32">Round of 32</option>
+              <option value="Sweet Sixteen">Sweet Sixteen</option>
+              <option value="Elite Eight">Elite Eight</option>
+              <option value="Final Four">Final Four</option>
+              <option value="Championship">Championship</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Pool Status</label>
+            <select id="pool-status">
+              <option value="setup">Setup</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Entry Fee ($)</label>
+            <input type="number" id="pool-entry-fee" step="0.01" min="0" placeholder="10.00">
+          </div>
+
+          <button class="btn btn-primary" onclick="updatePool()">💾 Save Settings</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <div id="add-participant-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('add-participant-modal')">&times;</span>
+      <h2>Add Participant</h2>
+      <form id="add-participant-form">
+        <div class="form-group">
+          <label>Slack User ID *</label>
+          <input type="text" id="new-slack-user-id" required placeholder="U0123456789">
+        </div>
+        <div class="form-group">
+          <label>Username (optional)</label>
+          <input type="text" id="new-slack-username" placeholder="@username">
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="new-participant-paid" checked style="width: auto; margin-right: 8px;">
+            Mark as paid
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Participant</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="betty-message-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('betty-message-modal')">&times;</span>
+      <h2>Send Betty Message</h2>
+      <form id="betty-message-form">
+        <div class="form-group">
+          <label>Destination</label>
+          <select id="modal-message-destination">
+            <option value="channel">Main Channel</option>
+            <option value="dm">Direct Message</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Message</label>
+          <textarea id="modal-message-content" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/admin/js/api.js"></script>
+  <script src="/admin/js/dashboard.js"></script>
+</body>
+</html>
