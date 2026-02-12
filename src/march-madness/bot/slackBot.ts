@@ -2,6 +2,8 @@ import { App, ExpressReceiver } from '@slack/bolt';
 import { setupAdminRoutes } from '../admin/server';
 import { submitPick, getCurrentPick } from '../services/pickManager';
 import { sendErrorDM } from '../services/slackMessaging';
+import * as poolModel from '../models/pool';
+import * as teamModel from '../models/tournamentTeam';
 
 export async function startMarchMadnessBot(port: number): Promise<void> {
   console.log('🏀 March Madness Bot starting...');
@@ -48,16 +50,63 @@ export async function startMarchMadnessBot(port: number): Promise<void> {
 
       if (lowerText === 'help' || lowerText === 'info') {
         await say(
-          `🏀 **March Madness Pool - How to Play**\n\n` +
-            `**Submit a pick:** Just send me the team name (e.g., "Duke", "North Carolina")\n\n` +
-            `**Check your pick:** Send "my pick" or "status"\n\n` +
-            `**Rules:**\n` +
+          `🏀 *March Madness Pool - How to Play*\n\n` +
+            `*Submit a pick:* Just send me the team name (e.g., "Duke", "North Carolina", "Heels")\n\n` +
+            `*Check your pick:* Send \`my pick\` or \`status\`\n\n` +
+            `*See active teams:* Send \`teams\`\n\n` +
+            `*Rules:*\n` +
             `• Pick ONE team per round\n` +
             `• If your team wins, you advance\n` +
             `• If your team loses, you're eliminated\n` +
-            `• You CANNOT reuse teams\n\n` +
+            `• You CANNOT reuse teams across rounds\n\n` +
             `Good luck! 🍀`
         );
+        return;
+      }
+
+      if (lowerText === 'teams' || lowerText === 'team list' || lowerText === 'show teams') {
+        const pool = await poolModel.getCurrentPool();
+        if (!pool) {
+          await say(`No active pool found. Contact the admin.`);
+          return;
+        }
+
+        const activeTeams = await teamModel.getActiveTeams(pool.id);
+
+        if (activeTeams.length === 0) {
+          await say(`No teams have been loaded yet. The admin needs to set up the tournament teams first.`);
+          return;
+        }
+
+        // Group by region if regions are set
+        const hasRegions = activeTeams.some((t) => t.region);
+
+        if (hasRegions) {
+          const byRegion: Record<string, typeof activeTeams> = {};
+          for (const team of activeTeams) {
+            const region = team.region || 'Other';
+            if (!byRegion[region]) byRegion[region] = [];
+            byRegion[region].push(team);
+          }
+
+          let message = `🏀 *Active Teams (${activeTeams.length})*\n\n`;
+          for (const region of ['East', 'West', 'South', 'Midwest', 'Other']) {
+            if (!byRegion[region]) continue;
+            message += `*${region}*\n`;
+            message += byRegion[region]
+              .sort((a, b) => (a.seed || 99) - (b.seed || 99))
+              .map((t) => `  ${t.seed ? `(${t.seed}) ` : ''}${t.team_name}`)
+              .join('\n');
+            message += '\n\n';
+          }
+          await say(message.trim());
+        } else {
+          const teamList = activeTeams
+            .sort((a, b) => (a.seed || 99) - (b.seed || 99) || a.team_name.localeCompare(b.team_name))
+            .map((t) => (t.seed ? `(${t.seed}) ${t.team_name}` : t.team_name))
+            .join('\n');
+          await say(`🏀 *Active Teams (${activeTeams.length})*\n\n${teamList}`);
+        }
         return;
       }
 

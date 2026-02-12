@@ -9,6 +9,7 @@ import poolRoutes from './routes/pool';
 import participantRoutes from './routes/participants';
 import pickRoutes from './routes/picks';
 import bettyRoutes from './routes/betty';
+import teamRoutes from './routes/teams';
 
 export function setupAdminRoutes(app: express.Application): void {
   // Middleware
@@ -30,6 +31,7 @@ export function setupAdminRoutes(app: express.Application): void {
   app.use('/api/participants', requireAuth, participantRoutes);
   app.use('/api/picks', requireAuth, pickRoutes);
   app.use('/api/betty', requireAuth, bettyRoutes);
+  app.use('/api/teams', requireAuth, teamRoutes);
 
   // Health check
   app.get('/health', (_req, res) => {

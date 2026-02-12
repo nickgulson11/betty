@@ -75,4 +75,14 @@ const api = {
   sendMessage: (destination, message, target = null) =>
     apiRequest('/betty/message', 'POST', { destination, message, target }),
   getTemplates: () => apiRequest('/betty/templates'),
+
+  // Teams
+  getTeams: () => apiRequest('/teams'),
+  createTeam: (data) => apiRequest('/teams', 'POST', data),
+  bulkImportTeams: (data) => apiRequest('/teams/bulk', 'POST', data),
+  fetchEspnTeams: () => apiRequest('/teams/fetch-espn', 'POST'),
+  updateTeam: (id, data) => apiRequest(`/teams/${id}`, 'PUT', data),
+  eliminateTeam: (id, round) => apiRequest(`/teams/${id}/eliminate`, 'POST', { round }),
+  deleteTeam: (id) => apiRequest(`/teams/${id}`, 'DELETE'),
+  clearTeams: () => apiRequest('/teams/all', 'DELETE'),
 };

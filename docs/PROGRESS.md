@@ -151,35 +151,101 @@
 
 ---
 
-## 📋 Phase 4: Tournament Automation (NOT STARTED)
+## 🔄 Phase 4: Tournament Automation (IN PROGRESS)
 
-**Target Start:** After Phase 3
+**Started:** February 12, 2026
 **Estimated Duration:** 2-3 sessions
 
-### Tasks Remaining:
+---
 
-**Tournament Teams Management (Testing Infrastructure):**
-- [ ] Admin UI to manage tournament teams
-  - [ ] View all tournament teams
-  - [ ] Add team manually (name, seed, region)
-  - [ ] Edit team details
-  - [ ] Delete team
-  - [ ] Bulk import (CSV/JSON)
-  - [ ] Mark team as eliminated
-- [ ] Pick validation against tournament_teams table
-  - [ ] Check if team exists when submitting pick
-  - [ ] Return friendly error if team not in tournament
-  - [ ] Show available teams to user
+### ✅ Track 1: Tournament Teams Management (COMPLETE)
 
-**ESPN API Integration (Production):**
-- [ ] NCAA/ESPN API integration
-- [ ] Fetch tournament bracket (when available in March)
-- [ ] Auto-populate tournament_teams table
-- [ ] Fetch game results
-- [ ] Auto-update team elimination status
-- [ ] Determine pick outcomes (won/lost)
-- [ ] Eliminate participants based on results
-- [ ] Round progression logic
+**Completed:** February 12, 2026
+
+#### Files Created:
+- `src/march-madness/types/tournamentTeam.ts` — TournamentTeam, CreateTeamInput, BulkImportInput, UpdateTeamInput types
+- `src/march-madness/models/tournamentTeam.ts` — Full DB model (getTeamsByPool, getActiveTeams, getTeamByName, createTeam, bulkCreateTeams, updateTeam, markTeamEliminated, deleteTeam, clearTeams)
+- `src/march-madness/services/teamMatcher.ts` — Claude Haiku fuzzy matching (exact match first, then AI fallback for nicknames/abbreviations/typos)
+- `src/march-madness/admin/routes/teams.ts` — REST API (GET, POST, POST /bulk, POST /fetch-espn placeholder, PUT /:id, POST /:id/eliminate, DELETE /all, DELETE /:id)
+- `docs/plans/2026-02-12-phase4-track1-design.md` — Design document
+- `docs/test-data/sample-64-teams.txt` — 64 sample teams with seeds/regions for bulk import testing
+
+#### Files Modified:
+- `src/march-madness/services/pickManager.ts` — Added team validation against tournament_teams, Claude fuzzy matching, canonical name enforcement
+- `src/march-madness/bot/slackBot.ts` — Added `teams` command (shows active teams grouped by region), updated help text
+- `src/march-madness/admin/server.ts` — Wired in teams router at `/api/teams`
+- `src/march-madness/admin/public/dashboard.html` — Added Teams tab to sidebar, Teams view with stats/table/buttons, 4 modals (Add, Edit, Eliminate, Bulk Import)
+- `src/march-madness/admin/public/js/dashboard.js` — Full Teams tab logic (load, render, filter, all CRUD handlers, bulk import parser)
+- `src/march-madness/admin/public/js/api.js` — Added all Teams API methods
+
+#### Key Design Decisions:
+- **Claude Haiku** used for fuzzy team matching (not Sonnet) — cheaper, fast enough for simple lookup
+- Exact case-insensitive match attempted first — Claude only called on no-match (cuts API calls ~50%)
+- Claude must return a name from the fixed team list or `null` — prevents hallucination
+- Bulk import uses upsert — safe to re-run without creating duplicates
+- ESPN button present in UI but returns 501 — placeholder for Track 2
+
+#### Build Status:
+- ✅ TypeScript compiled with no errors
+- ⚠️ `npm start` startup hang not yet diagnosed — bot printed `🏀 Starting March Madness Pool Mode...` but did not reach `⚡️ running on port`. Likely needs ngrok running for Slack handshake or Supabase connection issue. **Not yet tested end-to-end.**
+
+#### Testing Checklist (TODO next session):
+
+**Local startup:**
+- [ ] Start ngrok (`ngrok http 3000`) and confirm tunnel URL
+- [ ] Update Slack app event subscription URL to ngrok URL
+- [ ] Confirm `npm start` completes — bot prints `⚡️ running on port 3000!`
+
+**Admin console — Teams tab:**
+- [ ] Teams tab loads with empty state message
+- [ ] Add a single team via modal (name, seed, region)
+- [ ] Bulk import using `docs/test-data/sample-64-teams.txt` — verify 64 teams appear
+- [ ] Edit a team's seed/region
+- [ ] Eliminate a team via modal — verify badge turns red
+- [ ] Delete a single team
+- [ ] Filter by Active / Eliminated
+- [ ] Clear all teams (testing reset)
+- [ ] ESPN button shows "coming soon" alert
+
+**Pick submission via DM:**
+- [ ] DM Betty `teams` — see active team list grouped by region
+- [ ] DM Betty `help` — verify "teams" command listed
+- [ ] DM Betty exact team name (e.g. "Duke") — pick accepted with canonical name
+- [ ] DM Betty lowercase name (e.g. "duke") — case-insensitive match, pick accepted
+- [ ] DM Betty a nickname (e.g. "Heels", "Zags", "Nova") — Claude fuzzy match, pick accepted
+- [ ] DM Betty unknown string (e.g. "xyz123") — friendly error, directed to `teams`
+- [ ] DM Betty with no teams loaded (after Clear All) — "contact admin" error
+- [ ] Verify pick stored with canonical team name (check admin Picks tab)
+
+**Deployment:**
+- [ ] Commit all Track 1 changes to git
+- [ ] Push to Railway — verify deploy succeeds
+- [ ] Confirm admin console accessible at production URL
+- [ ] Smoke test Teams tab in production
+- [ ] Switch `BETTY_MODE=march_madness` in Railway env vars (if not already set)
+
+---
+
+### 📋 Track 2: ESPN API Integration (NOT STARTED)
+
+**Target Start:** Next session (after Track 1 testing passes)
+**Estimated Duration:** 1-2 sessions
+
+#### Schema Decision:
+- **No `game_results` table** — unnecessary for survivor pool logic
+- Instead, add `championship_total_score INTEGER` column to the `pools` table for tiebreaker use
+- Team elimination tracked entirely via `tournament_teams.status` + `tournament_teams.eliminated_round`
+- Pick outcomes tracked entirely via `picks.result` (won/lost/pending)
+
+#### Tasks Remaining:
+- [ ] DB migration: add `championship_total_score` column to `pools` table
+- [ ] New service: `src/march-madness/services/ncaaService.ts` — ESPN API calls (fetch bracket, fetch game results)
+- [ ] New service: `src/march-madness/services/resultsProcessor.ts` — take ESPN results, mark teams eliminated in `tournament_teams`, update `picks.result` (won/lost), eliminate participants
+- [ ] New route: `src/march-madness/admin/routes/results.ts` — manual team elimination entry + trigger auto-fetch + set championship score
+- [ ] New scheduler: `src/march-madness/scheduler/tournamentScheduler.ts` — cron job polling ESPN every 30 min during active rounds
+- [ ] Wire scheduler into startup (`src/index.ts` or `slackBot.ts`)
+- [ ] Admin UI: Results tab — trigger ESPN fetch, manual team elimination, set championship score, "Process Round Results" button
+- [ ] Replace ESPN button placeholder (501) with real implementation
 
 ---
 
@@ -269,5 +335,5 @@
 
 ---
 
-**Last Session:** February 9, 2025 - Phase 3 Complete (Participant Experience)
-**Next Session:** TBD - Start Phase 4 (Tournament Automation - ESPN API Integration)
+**Last Session:** February 12, 2026 - Phase 4 Track 1 Complete (Tournament Teams Management)
+**Next Session:** TBD - Test Track 1 locally, deploy to Railway, then start Phase 4 Track 2 (ESPN API Integration)

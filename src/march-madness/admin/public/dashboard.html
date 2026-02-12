@@ -23,6 +23,7 @@
         <li><a href="#" data-page="dashboard" class="active">📊 Dashboard</a></li>
         <li><a href="#" data-page="participants">👥 Participants</a></li>
         <li><a href="#" data-page="picks">📝 Picks</a></li>
+        <li><a href="#" data-page="teams">🏀 Teams</a></li>
         <li><a href="#" data-page="betty">💬 Betty Chat</a></li>
         <li><a href="#" data-page="pool">⚙️ Pool Settings</a></li>
       </ul>
@@ -145,6 +146,55 @@
               <th>Seed</th>
               <th>Result</th>
               <th>Submitted At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Teams View -->
+      <div id="teams-view" class="view">
+        <h2>Tournament Teams</h2>
+
+        <div class="stats-grid" style="margin-bottom: 20px;">
+          <div class="stat-card">
+            <div class="stat-value" id="total-teams">0</div>
+            <div class="stat-label">Total Teams</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="active-teams">0</div>
+            <div class="stat-label">Active</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="eliminated-teams">0</div>
+            <div class="stat-label">Eliminated</div>
+          </div>
+        </div>
+
+        <div class="view-controls">
+          <button class="btn btn-primary" onclick="showAddTeamModal()">➕ Add Team</button>
+          <button class="btn btn-primary" onclick="showBulkImportModal()">📋 Bulk Import</button>
+          <button class="btn btn-secondary" title="Coming in Track 2 — ESPN integration" onclick="alert('ESPN integration coming in Phase 4 Track 2!')" style="opacity: 0.6; cursor: not-allowed;">🏀 Fetch from ESPN</button>
+          <button class="btn" onclick="clearAllTeams()" style="background: #dc3545; color: white;">🗑️ Clear All Teams</button>
+          <div class="filter-group">
+            <label>Filter:</label>
+            <select id="team-filter" onchange="filterTeams()">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="eliminated">Eliminated</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="teams-table">
+          <thead>
+            <tr>
+              <th>Team Name</th>
+              <th>Seed</th>
+              <th>Region</th>
+              <th>Status</th>
+              <th>Eliminated Round</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -301,6 +351,111 @@
         </div>
         <button type="submit" class="btn btn-primary">Send</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Add Team Modal -->
+  <div id="add-team-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('add-team-modal')">&times;</span>
+      <h2>Add Team</h2>
+      <form id="add-team-form">
+        <div class="form-group">
+          <label>Team Name *</label>
+          <input type="text" id="new-team-name" required placeholder="Duke">
+        </div>
+        <div class="form-group">
+          <label>Seed (1–16, optional)</label>
+          <input type="number" id="new-team-seed" min="1" max="16" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label>Region (optional)</label>
+          <select id="new-team-region">
+            <option value="">-- None --</option>
+            <option value="East">East</option>
+            <option value="West">West</option>
+            <option value="South">South</option>
+            <option value="Midwest">Midwest</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Team</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Team Modal -->
+  <div id="edit-team-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('edit-team-modal')">&times;</span>
+      <h2>Edit Team</h2>
+      <form id="edit-team-form">
+        <input type="hidden" id="edit-team-id">
+        <div class="form-group">
+          <label>Team Name *</label>
+          <input type="text" id="edit-team-name" required>
+        </div>
+        <div class="form-group">
+          <label>Seed (1–16, optional)</label>
+          <input type="number" id="edit-team-seed" min="1" max="16">
+        </div>
+        <div class="form-group">
+          <label>Region (optional)</label>
+          <select id="edit-team-region">
+            <option value="">-- None --</option>
+            <option value="East">East</option>
+            <option value="West">West</option>
+            <option value="South">South</option>
+            <option value="Midwest">Midwest</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Eliminate Team Modal -->
+  <div id="eliminate-team-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('eliminate-team-modal')">&times;</span>
+      <h2>Eliminate Team</h2>
+      <p id="eliminate-team-name-display" style="font-weight: bold; font-size: 1.1em;"></p>
+      <form id="eliminate-team-form">
+        <input type="hidden" id="eliminate-team-id">
+        <div class="form-group">
+          <label>Eliminated in Round *</label>
+          <select id="eliminate-team-round" required>
+            <option value="Round of 64">Round of 64</option>
+            <option value="Round of 32">Round of 32</option>
+            <option value="Sweet Sixteen">Sweet Sixteen</option>
+            <option value="Elite Eight">Elite Eight</option>
+            <option value="Final Four">Final Four</option>
+            <option value="Championship">Championship</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-danger">Mark Eliminated</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bulk Import Modal -->
+  <div id="bulk-import-modal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+      <span class="close" onclick="closeModal('bulk-import-modal')">&times;</span>
+      <h2>Bulk Import Teams</h2>
+      <p>Paste teams below. Two formats supported:</p>
+      <p><strong>Simple</strong> — one team name per line:</p>
+      <pre style="background:#f5f5f5; padding: 8px; border-radius: 4px; font-size: 0.85em;">Duke
+North Carolina
+Kansas</pre>
+      <p><strong>With seed &amp; region</strong> — comma-separated:</p>
+      <pre style="background:#f5f5f5; padding: 8px; border-radius: 4px; font-size: 0.85em;">Duke, 1, East
+North Carolina, 2, East
+Kansas, 1, Midwest</pre>
+      <div class="form-group" style="margin-top: 16px;">
+        <label>Teams</label>
+        <textarea id="bulk-import-text" rows="14" placeholder="Paste teams here..." style="font-family: monospace;"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="submitBulkImport()">📋 Import Teams</button>
     </div>
   </div>
 

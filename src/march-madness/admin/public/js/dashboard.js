@@ -9,6 +9,7 @@ if (!localStorage.getItem('admin_token')) {
 let currentPool = null;
 let participants = [];
 let picks = [];
+let teams = [];
 let templates = [];
 
 // Initialize dashboard
@@ -36,6 +37,11 @@ function setupEventListeners() {
 
   // Betty Message Form
   document.getElementById('betty-message-form').addEventListener('submit', handleSendBettyMessage);
+
+  // Team Forms
+  document.getElementById('add-team-form').addEventListener('submit', handleAddTeam);
+  document.getElementById('edit-team-form').addEventListener('submit', handleEditTeam);
+  document.getElementById('eliminate-team-form').addEventListener('submit', handleEliminateTeam);
 
   // Message content preview
   document.getElementById('message-content')?.addEventListener('input', updateMessagePreview);
@@ -71,6 +77,9 @@ function navigateTo(page) {
       break;
     case 'picks':
       loadPicks();
+      break;
+    case 'teams':
+      loadTeams();
       break;
     case 'betty':
       // Betty chat is static for now
@@ -330,6 +339,232 @@ async function deletePick(id) {
     alert('Failed to delete pick');
   }
 }
+
+// ─── Teams ────────────────────────────────────────────────────────────────────
+
+async function loadTeams() {
+  try {
+    teams = await api.getTeams();
+    renderTeams();
+    updateTeamStats();
+  } catch (error) {
+    console.error('Error loading teams:', error);
+    alert('Failed to load teams');
+  }
+}
+
+function updateTeamStats() {
+  const activeCount = teams.filter((t) => t.status === 'active').length;
+  const eliminatedCount = teams.filter((t) => t.status === 'eliminated').length;
+  document.getElementById('total-teams').textContent = teams.length;
+  document.getElementById('active-teams').textContent = activeCount;
+  document.getElementById('eliminated-teams').textContent = eliminatedCount;
+}
+
+function renderTeams(filter = 'all') {
+  const tbody = document.querySelector('#teams-table tbody');
+  let filtered = teams;
+
+  if (filter !== 'all') {
+    filtered = teams.filter((t) => t.status === filter);
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#999;">No teams found. Use "Add Team" or "Bulk Import" to get started.</td></tr>';
+    return;
+  }
+
+  // Sort: by region, then seed, then name
+  filtered.sort((a, b) => {
+    const regionOrder = ['East', 'West', 'South', 'Midwest'];
+    const ra = regionOrder.indexOf(a.region) >= 0 ? regionOrder.indexOf(a.region) : 99;
+    const rb = regionOrder.indexOf(b.region) >= 0 ? regionOrder.indexOf(b.region) : 99;
+    if (ra !== rb) return ra - rb;
+    if (a.seed && b.seed) return a.seed - b.seed;
+    if (a.seed) return -1;
+    if (b.seed) return 1;
+    return a.team_name.localeCompare(b.team_name);
+  });
+
+  tbody.innerHTML = filtered
+    .map(
+      (t) => `
+    <tr>
+      <td><strong>${t.team_name}</strong></td>
+      <td>${t.seed || '-'}</td>
+      <td>${t.region || '-'}</td>
+      <td><span class="badge badge-${t.status === 'active' ? 'active' : 'eliminated'}">${t.status === 'active' ? 'Active' : 'Eliminated'}</span></td>
+      <td>${t.eliminated_round || '-'}</td>
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick="showEditTeamModal('${t.id}')">Edit</button>
+        ${t.status === 'active' ? `<button class="btn btn-sm btn-danger" onclick="showEliminateTeamModal('${t.id}', '${t.team_name.replace(/'/g, "\\'")}')">Eliminate</button>` : ''}
+        <button class="btn btn-sm btn-danger" onclick="deleteTeam('${t.id}', '${t.team_name.replace(/'/g, "\\'")}')">Delete</button>
+      </td>
+    </tr>
+  `
+    )
+    .join('');
+}
+
+function filterTeams() {
+  const filter = document.getElementById('team-filter').value;
+  renderTeams(filter);
+}
+
+function showAddTeamModal() {
+  document.getElementById('add-team-form').reset();
+  document.getElementById('add-team-modal').classList.add('active');
+}
+
+function showBulkImportModal() {
+  document.getElementById('bulk-import-text').value = '';
+  document.getElementById('bulk-import-modal').classList.add('active');
+}
+
+function showEditTeamModal(id) {
+  const team = teams.find((t) => t.id === id);
+  if (!team) return;
+
+  document.getElementById('edit-team-id').value = team.id;
+  document.getElementById('edit-team-name').value = team.team_name;
+  document.getElementById('edit-team-seed').value = team.seed || '';
+  document.getElementById('edit-team-region').value = team.region || '';
+  document.getElementById('edit-team-modal').classList.add('active');
+}
+
+function showEliminateTeamModal(id, teamName) {
+  document.getElementById('eliminate-team-id').value = id;
+  document.getElementById('eliminate-team-name-display').textContent = teamName;
+  // Default to current round if set
+  if (currentPool && currentPool.current_round) {
+    document.getElementById('eliminate-team-round').value = currentPool.current_round;
+  }
+  document.getElementById('eliminate-team-modal').classList.add('active');
+}
+
+async function handleAddTeam(e) {
+  e.preventDefault();
+
+  const team_name = document.getElementById('new-team-name').value.trim();
+  const seedVal = document.getElementById('new-team-seed').value;
+  const region = document.getElementById('new-team-region').value || undefined;
+  const seed = seedVal ? parseInt(seedVal) : undefined;
+
+  try {
+    await api.createTeam({ team_name, seed, region });
+    closeModal('add-team-modal');
+    document.getElementById('add-team-form').reset();
+    await loadTeams();
+  } catch (error) {
+    console.error('Error adding team:', error);
+    alert(`Failed to add team: ${error.message}`);
+  }
+}
+
+async function handleEditTeam(e) {
+  e.preventDefault();
+
+  const id = document.getElementById('edit-team-id').value;
+  const team_name = document.getElementById('edit-team-name').value.trim();
+  const seedVal = document.getElementById('edit-team-seed').value;
+  const region = document.getElementById('edit-team-region').value || null;
+  const seed = seedVal ? parseInt(seedVal) : null;
+
+  try {
+    await api.updateTeam(id, { team_name, seed, region });
+    closeModal('edit-team-modal');
+    await loadTeams();
+  } catch (error) {
+    console.error('Error editing team:', error);
+    alert(`Failed to update team: ${error.message}`);
+  }
+}
+
+async function handleEliminateTeam(e) {
+  e.preventDefault();
+
+  const id = document.getElementById('eliminate-team-id').value;
+  const round = document.getElementById('eliminate-team-round').value;
+
+  try {
+    await api.eliminateTeam(id, round);
+    closeModal('eliminate-team-modal');
+    await loadTeams();
+  } catch (error) {
+    console.error('Error eliminating team:', error);
+    alert(`Failed to eliminate team: ${error.message}`);
+  }
+}
+
+async function deleteTeam(id, teamName) {
+  if (!confirm(`Delete "${teamName}"? This cannot be undone.`)) return;
+
+  try {
+    await api.deleteTeam(id);
+    await loadTeams();
+  } catch (error) {
+    console.error('Error deleting team:', error);
+    alert(`Failed to delete team: ${error.message}`);
+  }
+}
+
+async function clearAllTeams() {
+  if (!confirm('⚠️ Delete ALL teams from this pool?\n\nThis cannot be undone.')) return;
+
+  try {
+    const result = await api.clearTeams();
+    alert(`✅ ${result.message}`);
+    await loadTeams();
+  } catch (error) {
+    console.error('Error clearing teams:', error);
+    alert('Failed to clear teams');
+  }
+}
+
+async function submitBulkImport() {
+  const raw = document.getElementById('bulk-import-text').value.trim();
+
+  if (!raw) {
+    alert('Please paste some teams first.');
+    return;
+  }
+
+  // Parse the pasted text
+  const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
+  const parsedTeams = [];
+
+  for (const line of lines) {
+    const parts = line.split(',').map((p) => p.trim());
+    const team_name = parts[0];
+    if (!team_name) continue;
+
+    const seed = parts[1] ? parseInt(parts[1]) : undefined;
+    const region = parts[2] || undefined;
+
+    parsedTeams.push({
+      team_name,
+      ...(seed && !isNaN(seed) ? { seed } : {}),
+      ...(region ? { region } : {}),
+    });
+  }
+
+  if (parsedTeams.length === 0) {
+    alert('No valid teams found in the pasted text.');
+    return;
+  }
+
+  try {
+    const result = await api.bulkImportTeams({ teams: parsedTeams });
+    closeModal('bulk-import-modal');
+    alert(`✅ ${result.message}${result.validationErrors && result.validationErrors.length > 0 ? '\n\nWarnings:\n' + result.validationErrors.join('\n') : ''}`);
+    await loadTeams();
+  } catch (error) {
+    console.error('Error bulk importing teams:', error);
+    alert(`Failed to import teams: ${error.message}`);
+  }
+}
+
+// ─── Pool Settings ────────────────────────────────────────────────────────────
 
 // Pool Settings
 async function loadPoolSettings() {

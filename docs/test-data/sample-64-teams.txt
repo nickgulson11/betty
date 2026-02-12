@@ -1,0 +1,75 @@
+# Sample 64-Team Bracket for Testing
+# Format: Team Name, Seed, Region
+# Paste the lines below (without the # comments) into the Bulk Import textarea
+
+# ── EAST ──────────────────────────────────────────────────────────────────────
+Duke, 1, East
+Alabama, 2, East
+Creighton, 3, East
+Tennessee, 4, East
+Saint Mary's, 5, East
+Texas, 6, East
+Florida, 7, East
+Maryland, 8, East
+West Virginia, 9, East
+Utah State, 10, East
+NC State, 11, East
+James Madison, 12, East
+Vermont, 13, East
+Morehead State, 14, East
+Long Beach State, 15, East
+Wagner, 16, East
+
+# ── WEST ──────────────────────────────────────────────────────────────────────
+Kansas, 1, West
+Arizona, 2, West
+Baylor, 3, West
+Virginia, 4, West
+San Diego State, 5, West
+BYU, 6, West
+Dayton, 7, West
+Nevada, 8, West
+TCU, 9, West
+Drake, 10, West
+Pittsburgh, 11, West
+Charleston, 12, West
+Furman, 13, West
+UC Santa Barbara, 14, West
+Princeton, 15, West
+Howard, 16, West
+
+# ── SOUTH ─────────────────────────────────────────────────────────────────────
+Houston, 1, South
+Marquette, 2, South
+Kentucky, 3, South
+Indiana, 4, South
+Miami, 5, South
+Iowa State, 6, South
+Arkansas, 7, South
+Iowa, 8, South
+Auburn, 9, South
+Penn State, 10, South
+Providence, 11, South
+Oral Roberts, 12, South
+Jena State, 13, South
+Kennesaw State, 14, South
+Colgate, 15, South
+Northern Kentucky, 16, South
+
+# ── MIDWEST ───────────────────────────────────────────────────────────────────
+Purdue, 1, Midwest
+Gonzaga, 2, Midwest
+Xavier, 3, Midwest
+Connecticut, 4, Midwest
+Duke Blue, 5, Midwest
+TCU Frogs, 6, Midwest
+Missouri, 7, Midwest
+Utah, 8, Midwest
+Florida Atlantic, 9, Midwest
+Boise State, 10, Midwest
+Arizona State, 11, Midwest
+VCU, 12, Midwest
+Louisiana, 13, Midwest
+Montana State, 14, Midwest
+UNC Asheville, 15, Midwest
+Farleigh Dickinson, 16, Midwest

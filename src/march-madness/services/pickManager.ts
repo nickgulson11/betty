@@ -1,7 +1,9 @@
 import * as participantModel from '../models/participant';
 import * as pickModel from '../models/pick';
 import * as poolModel from '../models/pool';
+import * as teamModel from '../models/tournamentTeam';
 import { sendPickConfirmation, sendPickUpdateConfirmation } from './slackMessaging';
+import { matchTeamName } from './teamMatcher';
 
 export interface PickSubmissionResult {
   success: boolean;
@@ -83,13 +85,35 @@ export async function submitPick(
       };
     }
 
+    // Validate team against tournament_teams table
+    const activeTeams = await teamModel.getActiveTeams(pool.id);
+
+    if (activeTeams.length === 0) {
+      return {
+        success: false,
+        message: 'Tournament teams haven\'t been loaded yet. Contact the admin.',
+        error: 'NO_TEAMS_LOADED',
+      };
+    }
+
+    // Match team name (exact first, then Claude fuzzy)
+    const canonicalTeamName = await matchTeamName(teamName, activeTeams);
+
+    if (!canonicalTeamName) {
+      return {
+        success: false,
+        message: `I don't recognize "${teamName}" as a tournament team. Reply with "teams" to see all active teams.`,
+        error: 'TEAM_NOT_FOUND',
+      };
+    }
+
     // Check if team has already been used by this participant
-    const hasUsedTeam = await pickModel.hasParticipantUsedTeam(participant.id, teamName);
+    const hasUsedTeam = await pickModel.hasParticipantUsedTeam(participant.id, canonicalTeamName);
 
     if (hasUsedTeam) {
       return {
         success: false,
-        message: `You've already used ${teamName} in a previous round. You cannot reuse teams!`,
+        message: `You've already used ${canonicalTeamName} in a previous round. You cannot reuse teams!`,
         error: 'TEAM_ALREADY_USED',
       };
     }
@@ -108,21 +132,21 @@ export async function submitPick(
       participant_id: participant.id,
       pool_id: pool.id,
       round: currentRound,
-      team_name: teamName,
+      team_name: canonicalTeamName,
     });
 
     // Send appropriate confirmation
     if (isUpdate && oldTeam) {
-      await sendPickUpdateConfirmation(slackUserId, oldTeam, teamName, currentRound);
+      await sendPickUpdateConfirmation(slackUserId, oldTeam, canonicalTeamName, currentRound);
     } else {
-      await sendPickConfirmation(slackUserId, teamName, currentRound);
+      await sendPickConfirmation(slackUserId, canonicalTeamName, currentRound);
     }
 
     return {
       success: true,
       message: isUpdate
-        ? `Pick updated to ${teamName} for ${currentRound}!`
-        : `Pick submitted: ${teamName} for ${currentRound}!`,
+        ? `Pick updated to ${canonicalTeamName} for ${currentRound}!`
+        : `Pick submitted: ${canonicalTeamName} for ${currentRound}!`,
       pick,
     };
   } catch (error) {
