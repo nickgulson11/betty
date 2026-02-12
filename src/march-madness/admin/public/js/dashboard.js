@@ -275,7 +275,7 @@ function renderPicks() {
     .map(
       (pick) => `
     <tr>
-      <td>${pick.participant_id.substring(0, 8)}...</td>
+      <td>${pick.slack_username || pick.participant_slack_id || pick.participant_id.substring(0, 8) + '...'}</td>
       <td>${pick.round}</td>
       <td>${pick.team_name}</td>
       <td>${pick.team_seed || '-'}</td>

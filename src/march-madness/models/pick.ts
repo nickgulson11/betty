@@ -14,14 +14,18 @@ export async function getPicksByParticipant(participantId: string): Promise<Pick
 }
 
 /**
- * Get all picks for a pool and round
+ * Get all picks for a pool and round, joined with participant username
  */
 export async function getPicksByPoolAndRound(
   poolId: string,
   round: TournamentRound
 ): Promise<Pick[]> {
   const result = await pool.query(
-    'SELECT * FROM picks WHERE pool_id = $1 AND round = $2 ORDER BY submitted_at ASC',
+    `SELECT picks.*, participants.slack_username, participants.slack_user_id AS participant_slack_id
+     FROM picks
+     JOIN participants ON picks.participant_id = participants.id
+     WHERE picks.pool_id = $1 AND picks.round = $2
+     ORDER BY picks.submitted_at ASC`,
     [poolId, round]
   );
   return result.rows;

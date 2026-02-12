@@ -187,42 +187,33 @@
 
 #### Build Status:
 - ✅ TypeScript compiled with no errors
-- ⚠️ `npm start` startup hang not yet diagnosed — bot printed `🏀 Starting March Madness Pool Mode...` but did not reach `⚡️ running on port`. Likely needs ngrok running for Slack handshake or Supabase connection issue. **Not yet tested end-to-end.**
+- ✅ All local and production tests passed
 
-#### Testing Checklist (TODO next session):
+#### Testing Checklist:
 
-**Local startup:**
-- [ ] Start ngrok (`ngrok http 3000`) and confirm tunnel URL
-- [ ] Update Slack app event subscription URL to ngrok URL
-- [ ] Confirm `npm start` completes — bot prints `⚡️ running on port 3000!`
+**Local:**
+- [x] Confirm `npm start` completes successfully
+- [x] Admin console → Teams tab loads with empty state message
+- [x] Add a single team via modal (name, seed, region)
+- [x] Bulk import using `docs/test-data/sample-64-teams.txt` — verify 64 teams appear
+- [x] Edit a team's seed/region
+- [x] Eliminate a team via modal — verify badge turns red
+- [x] Delete a single team
+- [x] Filter by Active / Eliminated
+- [x] Clear all teams (testing reset)
+- [x] ESPN button shows "coming soon" alert
 
-**Admin console — Teams tab:**
-- [ ] Teams tab loads with empty state message
-- [ ] Add a single team via modal (name, seed, region)
-- [ ] Bulk import using `docs/test-data/sample-64-teams.txt` — verify 64 teams appear
-- [ ] Edit a team's seed/region
-- [ ] Eliminate a team via modal — verify badge turns red
-- [ ] Delete a single team
-- [ ] Filter by Active / Eliminated
-- [ ] Clear all teams (testing reset)
-- [ ] ESPN button shows "coming soon" alert
-
-**Pick submission via DM:**
-- [ ] DM Betty `teams` — see active team list grouped by region
-- [ ] DM Betty `help` — verify "teams" command listed
-- [ ] DM Betty exact team name (e.g. "Duke") — pick accepted with canonical name
-- [ ] DM Betty lowercase name (e.g. "duke") — case-insensitive match, pick accepted
-- [ ] DM Betty a nickname (e.g. "Heels", "Zags", "Nova") — Claude fuzzy match, pick accepted
-- [ ] DM Betty unknown string (e.g. "xyz123") — friendly error, directed to `teams`
-- [ ] DM Betty with no teams loaded (after Clear All) — "contact admin" error
-- [ ] Verify pick stored with canonical team name (check admin Picks tab)
-
-**Deployment:**
-- [ ] Commit all Track 1 changes to git
-- [ ] Push to Railway — verify deploy succeeds
-- [ ] Confirm admin console accessible at production URL
-- [ ] Smoke test Teams tab in production
-- [ ] Switch `BETTY_MODE=march_madness` in Railway env vars (if not already set)
+**Production (post-deploy):**
+- [x] Commit and push to Railway — deploy succeeded
+- [x] Admin console accessible at production URL
+- [x] DM Betty `teams` — active team list grouped by region
+- [x] DM Betty `help` — "teams" command listed
+- [x] DM Betty exact team name (e.g. "Duke") — pick accepted
+- [x] DM Betty lowercase (e.g. "duke") — case-insensitive match works
+- [x] DM Betty a nickname (e.g. "Heels", "Zags", "Nova") — Claude fuzzy match works
+- [x] DM Betty unknown string — friendly error, directed to `teams`
+- [x] DM Betty with no teams loaded — "contact admin" error
+- [x] Pick stored with canonical team name (verified in admin Picks tab)
 
 ---
 
