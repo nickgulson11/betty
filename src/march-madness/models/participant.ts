@@ -89,11 +89,10 @@ export async function updateParticipant(
       updates.push(`paid_at = NOW()`);
     }
   }
-  if (input.tiebreaker_prediction !== undefined) {
-    updates.push(`tiebreaker_prediction = $${paramCount++}`);
-    values.push(input.tiebreaker_prediction);
+  if (input.seed_sum !== undefined) {
+    updates.push(`seed_sum = $${paramCount++}`);
+    values.push(input.seed_sum);
   }
-
   if (updates.length === 0) {
     return getParticipantById(id);
   }

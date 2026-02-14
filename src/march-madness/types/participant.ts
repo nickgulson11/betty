@@ -10,7 +10,7 @@ export interface Participant {
   eliminated_team: string | null;
   paid: boolean;
   paid_at: Date | null;
-  tiebreaker_prediction: number | null;
+  seed_sum: number;
   joined_at: Date;
   eliminated_at: Date | null;
 }
@@ -27,5 +27,5 @@ export interface UpdateParticipantInput {
   eliminated_round?: string;
   eliminated_team?: string;
   paid?: boolean;
-  tiebreaker_prediction?: number;
+  seed_sum?: number;
 }

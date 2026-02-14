@@ -45,8 +45,7 @@ Betty will be repurposed to host a survivor-style March Madness pool within a Sl
 
 ### Winning & Tiebreaker
 - Last person standing wins the pool
-- **Tiebreaker:** If multiple people survive all 6 rounds, winner is determined by closest prediction to the total points scored in the championship game
-- Tiebreaker predictions submitted before the championship game starts
+- **Tiebreaker:** If multiple people survive all 6 rounds, winner is determined by the highest sum of seeds picked across all rounds (lower seed number = stronger team = harder pick = more points)
 
 ### Payment
 - Entry fee required (amount TBD by admin)
@@ -84,8 +83,8 @@ Betty will be repurposed to host a survivor-style March Madness pool within a Sl
   - Updated leaderboard/standings
 
 #### 5. Championship Tiebreaker
-- Before championship game, Betty DMs remaining participants to submit point total prediction
-- Predictions locked when championship game starts
+- If multiple participants survive all 6 rounds, tiebreaker is calculated automatically from picks already submitted
+- No additional input needed from participants
 
 ### Main Channel Communication
 Betty posts to the main Slack channel:
@@ -102,7 +101,7 @@ Betty sends DMs to individual participants:
 - Pick confirmations
 - Pick deadline reminders (personalized if they haven't submitted)
 - Elimination notification
-- Tiebreaker submission request
+- Tiebreaker result notification (if applicable)
 
 ---
 
@@ -241,7 +240,7 @@ CREATE TABLE participants (
   eliminated_team TEXT, -- which team caused elimination
   paid BOOLEAN DEFAULT FALSE,
   paid_at TIMESTAMP,
-  tiebreaker_prediction INTEGER, -- championship game point total
+  seed_sum INTEGER DEFAULT 0, -- Running sum of seeds picked across all rounds (used for tiebreaker)
   joined_at TIMESTAMP DEFAULT NOW(),
   eliminated_at TIMESTAMP,
   UNIQUE(pool_id, slack_user_id)
@@ -503,12 +502,12 @@ CREATE INDEX idx_admin_actions_time ON admin_actions(performed_at DESC);
    - Celebration messages for survivors
 
 ### Phase 6: Tiebreaker & Testing (Week 6)
-**Goal:** Championship tiebreaker and end-to-end testing
+**Goal:** Seed-sum tiebreaker and end-to-end testing
 
 1. **Tiebreaker System**
-   - Collect point total predictions before championship
-   - Calculate winner if multiple survivors
-   - Announcement with tiebreaker results
+   - `seed_sum` column on `participants` table — incremented by the results processor when picks lock at round end (not at submission time)
+   - Admin console shows `seed_sum` per participant — admin handles comms manually
+   - Highest seed sum wins in a tiebreaker scenario
 
 2. **Edge Case Handling**
    - Missed pick deadlines (auto-elimination)

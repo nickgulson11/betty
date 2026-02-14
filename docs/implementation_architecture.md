@@ -116,7 +116,7 @@ betty/
 │   │   │   ├── ncaaService.ts       # ESPN API for tournament data
 │   │   │   ├── notificationManager.ts # Reminders, announcements
 │   │   │   ├── leaderboardService.ts  # Generate standings
-│   │   │   └── tiebreakerService.ts   # Championship tiebreaker logic
+│   │   │   └── tiebreakerService.ts   # Seed-sum tiebreaker logic (highest sum of seeds picked wins)
 │   │   │
 │   │   ├── admin/
 │   │   │   ├── routes/

@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS participants (
   eliminated_team TEXT, -- Which team caused their elimination
   paid BOOLEAN DEFAULT FALSE,
   paid_at TIMESTAMP,
-  tiebreaker_prediction INTEGER, -- Championship game total points prediction
+  seed_sum INTEGER DEFAULT 0, -- Sum of seeds for locked picks across all rounds (updated by results processor, used for tiebreaker)
   joined_at TIMESTAMP DEFAULT NOW(),
   eliminated_at TIMESTAMP,
 
@@ -49,8 +49,6 @@ CREATE TABLE IF NOT EXISTS participants (
 
 COMMENT ON TABLE participants IS 'Users participating in March Madness pool';
 COMMENT ON COLUMN participants.status IS 'active (still in), eliminated (knocked out), withdrawn (quit early)';
-COMMENT ON COLUMN participants.tiebreaker_prediction IS 'Total points in championship game (for tiebreaker if multiple survivors)';
-
 CREATE INDEX idx_participants_pool ON participants(pool_id);
 CREATE INDEX idx_participants_status ON participants(pool_id, status);
 CREATE INDEX idx_participants_slack_user ON participants(slack_user_id);

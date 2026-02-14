@@ -224,18 +224,17 @@
 
 #### Schema Decision:
 - **No `game_results` table** — unnecessary for survivor pool logic
-- Instead, add `championship_total_score INTEGER` column to the `pools` table for tiebreaker use
+- Tiebreaker is determined by highest sum of seeds across all picks — no extra columns needed
 - Team elimination tracked entirely via `tournament_teams.status` + `tournament_teams.eliminated_round`
 - Pick outcomes tracked entirely via `picks.result` (won/lost/pending)
 
 #### Tasks Remaining:
-- [ ] DB migration: add `championship_total_score` column to `pools` table
 - [ ] New service: `src/march-madness/services/ncaaService.ts` — ESPN API calls (fetch bracket, fetch game results)
 - [ ] New service: `src/march-madness/services/resultsProcessor.ts` — take ESPN results, mark teams eliminated in `tournament_teams`, update `picks.result` (won/lost), eliminate participants
-- [ ] New route: `src/march-madness/admin/routes/results.ts` — manual team elimination entry + trigger auto-fetch + set championship score
+- [ ] New route: `src/march-madness/admin/routes/results.ts` — manual team elimination entry + trigger auto-fetch
 - [ ] New scheduler: `src/march-madness/scheduler/tournamentScheduler.ts` — cron job polling ESPN every 30 min during active rounds
 - [ ] Wire scheduler into startup (`src/index.ts` or `slackBot.ts`)
-- [ ] Admin UI: Results tab — trigger ESPN fetch, manual team elimination, set championship score, "Process Round Results" button
+- [ ] Admin UI: Results tab — trigger ESPN fetch, manual team elimination, "Process Round Results" button
 - [ ] Replace ESPN button placeholder (501) with real implementation
 
 ---
@@ -261,8 +260,9 @@
 **Estimated Duration:** 1-2 sessions
 
 ### Tasks Remaining:
-- [ ] Tiebreaker submission system
-- [ ] Tiebreaker calculation
+- [ ] `seed_sum` column tracked on `participants` table — incremented by the results processor when picks lock at round end (not at submission time)
+- [ ] Admin console participants view shows `seed_sum` column for each participant
+- [ ] Admin handles tiebreaker comms manually using `seed_sum` data
 - [ ] Edge case handling
 - [ ] End-to-end testing
 - [ ] Dry run with test data
