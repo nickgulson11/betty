@@ -10,17 +10,18 @@ import { sendDM, sendMainChannelMessage } from './slackMessaging';
 import { Participant } from '../types/participant';
 
 // ============================================================================
-// Tournament Schedule — last day of each round (2026)
-// End-of-round summary is only sent on the final day of each round.
+// Tournament round constants
 // ============================================================================
 
-const ROUND_END_DATES: Record<TournamentRound, string> = {
-  'Round of 64':   '2026-03-20',
-  'Round of 32':   '2026-03-22',
-  'Sweet Sixteen': '2026-03-27',
-  'Elite Eight':   '2026-03-29',
-  'Final Four':    '2026-04-04',
-  'Championship':  '2026-04-06',
+// Number of teams eliminated when a round is fully complete.
+// When DB elimination count for a round reaches this number, the round is done.
+const ROUND_ELIMINATION_COUNTS: Record<TournamentRound, number> = {
+  'Round of 64':   32,
+  'Round of 32':   16,
+  'Sweet Sixteen':  8,
+  'Elite Eight':    4,
+  'Final Four':     2,
+  'Championship':   1,
 };
 
 // Maps each round to the next — null means the tournament is over
@@ -32,17 +33,6 @@ const NEXT_ROUND: Partial<Record<TournamentRound, TournamentRound | null>> = {
   'Final Four':    'Championship',
   'Championship':  null,
 };
-
-/**
- * Returns true if today (ET) is the last scheduled day for the given round.
- */
-function isTodayRoundEndDate(round: TournamentRound): boolean {
-  const endDate = ROUND_END_DATES[round];
-  if (!endDate) return false;
-  const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  // en-CA locale gives YYYY-MM-DD format
-  return todayET === endDate;
-}
 
 // ============================================================================
 // Types
@@ -61,6 +51,7 @@ export interface ProcessorResult {
   gamesProcessed: number;
   teamsEliminated: string[];
   participantsEliminated: string[];
+  picksMarkedWon: number;
   noPickSweepRounds: string[];
   endOfRoundSummariesSent: string[];
 }
@@ -158,6 +149,47 @@ Generate ONLY the DM message, no other text.`;
   }
 
   return `⏰ You had ONE job, ${username}. No pick submitted for the ${round} — you're automatically eliminated. This is why we can't have nice things 💀`;
+}
+
+/**
+ * Generate a congrats DM for a participant whose team just won.
+ */
+async function generateWinDM(
+  username: string,
+  teamName: string,
+  round: string
+): Promise<string> {
+  const prompt = `You are Betty, a sassy, confident, no-filter March Madness pool bot for Slack.
+Send a DM to a participant whose team just won their game and they're moving on.
+
+Participant username: ${username}
+Their team: ${teamName}
+Round: ${round}
+
+Your personality:
+- Hype them up but keep it playful — a little smug, like you knew they'd make it
+- Uses slang: "youngblood", "honey", "chief", "fam", "playa"
+- Basketball slang: "locked in", "moving on", "staying alive", "still breathing"
+- Keep it SHORT — 2-3 sentences max
+- Pump them up for the next round without giving them too much credit
+
+Generate ONLY the DM message, no other text.`;
+
+  try {
+    const client = getAnthropicClient();
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 150,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const content = message.content[0];
+    if (content.type === 'text') return content.text.trim();
+  } catch (error) {
+    console.error('[resultsProcessor] Claude win DM generation failed:', error);
+  }
+
+  // Fallback
+  return `🎉 ${teamName} stays alive, ${username}! Nice pick — you're moving on. Don't get too comfortable yet, youngblood 🏀`;
 }
 
 /**
@@ -331,6 +363,16 @@ async function markPickLost(pickId: string): Promise<void> {
 }
 
 /**
+ * Mark a pick as won.
+ */
+async function markPickWon(pickId: string): Promise<void> {
+  await dbPool.query(
+    `UPDATE picks SET result = 'won', updated_at = NOW() WHERE id = $1`,
+    [pickId]
+  );
+}
+
+/**
  * Check if any teams are already eliminated for a given round.
  */
 async function hasEliminationsForRound(poolId: string, round: TournamentRound): Promise<boolean> {
@@ -341,6 +383,19 @@ async function hasEliminationsForRound(poolId: string, round: TournamentRound): 
     [poolId, round]
   );
   return result.rowCount !== null && result.rowCount > 0;
+}
+
+/**
+ * Count how many teams have been eliminated in a given round.
+ * When this equals ROUND_ELIMINATION_COUNTS[round], the round is complete.
+ */
+async function getEliminationCountForRound(poolId: string, round: TournamentRound): Promise<number> {
+  const result = await dbPool.query(
+    `SELECT COUNT(*) FROM tournament_teams
+     WHERE pool_id = $1 AND eliminated_round = $2 AND status = 'eliminated'`,
+    [poolId, round]
+  );
+  return parseInt(result.rows[0].count, 10);
 }
 
 // ============================================================================
@@ -494,6 +549,38 @@ async function runNoPickSweep(poolId: string, round: TournamentRound): Promise<s
 }
 
 /**
+ * Mark winning picks as won and send congrats DMs to participants.
+ * Called for each game winner after the loser has been eliminated.
+ * Returns the number of picks marked as won.
+ */
+async function celebrateWinner(
+  poolId: string,
+  canonicalName: string,
+  round: TournamentRound
+): Promise<number> {
+  const picks = await getPendingPicksForTeam(poolId, canonicalName, round);
+  if (picks.length === 0) return 0;
+
+  console.log(`[resultsProcessor] Marking ${picks.length} pick(s) won for "${canonicalName}" in ${round}`);
+
+  for (const pick of picks) {
+    await markPickWon(pick.pick_id);
+
+    const participant = await participantModel.getParticipantById(pick.participant_id);
+    if (!participant || participant.status !== 'active') continue;
+
+    const dmText = await generateWinDM(
+      participant.slack_username || 'friend',
+      canonicalName,
+      round
+    );
+    await sendDM(participant.slack_user_id, dmText);
+  }
+
+  return picks.length;
+}
+
+/**
  * Process a batch of today's tournament games from ESPN.
  * Handles round-start sweeps, per-game eliminations, and end-of-round summaries.
  */
@@ -502,6 +589,7 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
     gamesProcessed: 0,
     teamsEliminated: [],
     participantsEliminated: [],
+    picksMarkedWon: 0,
     noPickSweepRounds: [],
     endOfRoundSummariesSent: [],
   };
@@ -552,18 +640,29 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
 
     result.gamesProcessed++;
 
-    // Fuzzy-match ESPN team name to our DB canonical name
-    const canonicalName = await matchTeamName(game.loser, activeTeams);
-    if (!canonicalName) {
-      console.warn(`[resultsProcessor] Could not match ESPN team "${game.loser}" to any DB team — skipping`);
+    // Fuzzy-match ESPN loser name to our DB canonical name and eliminate
+    const loserCanonical = await matchTeamName(game.loser, activeTeams);
+    if (!loserCanonical) {
+      console.warn(`[resultsProcessor] Could not match ESPN loser "${game.loser}" to any DB team — skipping`);
       continue;
     }
 
-    const elimination = await eliminateTeam(canonicalName, game.round);
+    const elimination = await eliminateTeam(loserCanonical, game.round);
 
     if (!elimination.alreadyEliminated && !elimination.teamNotFound) {
-      result.teamsEliminated.push(canonicalName);
+      result.teamsEliminated.push(loserCanonical);
       result.participantsEliminated.push(...elimination.participantsEliminated);
+    }
+
+    // Fuzzy-match ESPN winner name and mark those picks as won
+    if (game.winner) {
+      const winnerCanonical = await matchTeamName(game.winner, activeTeams);
+      if (winnerCanonical) {
+        const wonCount = await celebrateWinner(poolId, winnerCanonical, game.round);
+        result.picksMarkedWon += wonCount;
+      } else {
+        console.warn(`[resultsProcessor] Could not match ESPN winner "${game.winner}" to any DB team — skipping win celebration`);
+      }
     }
   }
 
@@ -579,9 +678,11 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
     const allFinal = roundGames.every((g) => g.status === 'final');
     if (!allFinal) continue;
 
-    // Only send end-of-round summary on the last scheduled day of the round
-    if (!isTodayRoundEndDate(round)) {
-      console.log(`[resultsProcessor] All today's ${round} games final but not last day of round — skipping summary`);
+    // Only send end-of-round summary when all expected eliminations for the round are recorded
+    const eliminationCount = await getEliminationCountForRound(poolId, round);
+    const expectedEliminations = ROUND_ELIMINATION_COUNTS[round];
+    if (eliminationCount < expectedEliminations) {
+      console.log(`[resultsProcessor] ${round}: ${eliminationCount}/${expectedEliminations} eliminations recorded — round not complete yet, skipping summary`);
       continue;
     }
 
@@ -615,7 +716,7 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
     }
   }
 
-  console.log(`[resultsProcessor] Done. Games: ${result.gamesProcessed}, Teams eliminated: ${result.teamsEliminated.length}, Participants eliminated: ${result.participantsEliminated.length}`);
+  console.log(`[resultsProcessor] Done. Games: ${result.gamesProcessed}, Teams eliminated: ${result.teamsEliminated.length}, Participants eliminated: ${result.participantsEliminated.length}, Picks marked won: ${result.picksMarkedWon}`);
   return result;
 }
 

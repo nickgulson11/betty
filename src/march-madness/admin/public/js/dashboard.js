@@ -46,6 +46,9 @@ function setupEventListeners() {
   // Pick Form
   document.getElementById('add-pick-form').addEventListener('submit', handleAddPick);
 
+  // Simulate Game Form
+  document.getElementById('simulate-game-form').addEventListener('submit', handleSimulateGame);
+
   // Message content preview
   document.getElementById('message-content')?.addEventListener('input', updateMessagePreview);
 }
@@ -634,6 +637,45 @@ async function simulateRoundEndNow() {
   } finally {
     btn.disabled = false;
     btn.textContent = '🧪 Simulate Round End';
+  }
+}
+
+function showSimulateGameModal() {
+  const round = currentPool?.current_round || 'Round of 64';
+  const roundSelect = document.getElementById('sim-game-round');
+  if (roundSelect) roundSelect.value = round;
+  document.getElementById('sim-game-winner').value = '';
+  document.getElementById('sim-game-loser').value = '';
+  document.getElementById('simulate-game-modal').classList.add('active');
+}
+
+async function handleSimulateGame(e) {
+  e.preventDefault();
+  const winner = document.getElementById('sim-game-winner').value.trim();
+  const loser = document.getElementById('sim-game-loser').value.trim();
+  const round = document.getElementById('sim-game-round').value;
+
+  if (!winner || !loser) {
+    alert('Both winner and loser team names are required.');
+    return;
+  }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running...';
+
+  try {
+    const result = await api.simulateGame(winner, loser, round);
+    closeModal('simulate-game-modal');
+    alert(`✅ ${result.message}`);
+    await loadDashboard();
+    await loadTeams();
+  } catch (error) {
+    console.error('Error simulating game:', error);
+    alert(`Failed: ${error.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Simulation';
   }
 }
 

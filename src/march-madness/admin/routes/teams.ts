@@ -4,7 +4,7 @@ import * as poolModel from '../../models/pool';
 import { CreateTeamInput, UpdateTeamInput, BulkImportInput } from '../../types/tournamentTeam';
 import { TournamentRound } from '../../types/pool';
 import { eliminateTeam, processGames, simulateRoundEnd } from '../../services/resultsProcessor';
-import { fetchTodaysGames } from '../../services/ncaaService';
+import { fetchTodaysGames, TournamentGame } from '../../services/ncaaService';
 
 const router = express.Router();
 
@@ -162,6 +162,55 @@ router.post('/simulate-round-end', async (_req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error simulating round end:', error);
     res.status(500).json({ error: error.message || 'Failed to simulate round end' });
+  }
+});
+
+/**
+ * POST /api/teams/simulate-game
+ * Testing tool: simulate a single completed game result.
+ * Accepts { winner, loser, round } and runs the full processGames pipeline —
+ * loser gets eliminated, winner picks get marked won and congrats DMs sent.
+ */
+router.post('/simulate-game', async (req: Request, res: Response) => {
+  try {
+    const { winner, loser, round } = req.body;
+
+    if (!winner || !loser || !round) {
+      res.status(400).json({ error: 'winner, loser, and round are required' });
+      return;
+    }
+
+    const validRounds: TournamentRound[] = [
+      'Round of 64', 'Round of 32', 'Sweet Sixteen', 'Elite Eight', 'Final Four', 'Championship',
+    ];
+    if (!validRounds.includes(round as TournamentRound)) {
+      res.status(400).json({ error: `round must be one of: ${validRounds.join(', ')}` });
+      return;
+    }
+
+    console.log(`[teams/simulate-game] Simulating: ${winner} beats ${loser} in ${round}`);
+
+    const mockGame: TournamentGame = {
+      id: `sim-${Date.now()}`,
+      homeTeam: winner as string,
+      awayTeam: loser as string,
+      winner: winner as string,
+      loser: loser as string,
+      round: round as TournamentRound,
+      roundRaw: round as string,
+      status: 'final',
+    };
+
+    const result = await processGames([mockGame]);
+
+    res.json({
+      success: true,
+      message: `Game simulated: ${winner} beat ${loser} in ${round}. ${result.picksMarkedWon} pick(s) marked won, ${result.participantsEliminated.length} participant(s) eliminated.`,
+      result,
+    });
+  } catch (error: any) {
+    console.error('Error simulating game:', error);
+    res.status(500).json({ error: error.message || 'Failed to simulate game' });
   }
 });
 

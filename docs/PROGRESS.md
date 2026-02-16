@@ -220,37 +220,38 @@
 ### ✅ Track 2: ESPN API Integration (COMPLETE)
 
 **Designed:** February 15, 2026
-**Completed:** February 15, 2026
+**Completed:** February 16, 2026
 **Design Doc:** `docs/plans/2026-02-15-phase4-track2-design.md`
 
 #### Schema Decision:
 - **No new DB tables** — round-start detection uses existing `tournament_teams.eliminated_round` as signal
 - Team elimination tracked entirely via `tournament_teams.status` + `tournament_teams.eliminated_round`
-- Pick outcomes tracked entirely via `picks.result` (won/lost/pending)
+- Pick outcomes tracked entirely via `picks.result` — all three values now used: `won`, `lost`, `pending`
 - Idempotency: team already eliminated = skip, no double-processing
 
 #### Files Created:
 - `src/march-madness/services/ncaaService.ts` — ESPN scoreboard API (date-filtered, TRNMNT games only, never throws)
-- `src/march-madness/services/resultsProcessor.ts` — full pipeline: round-start sweep, per-game elimination, picks/participants update, Claude Haiku personality DMs + channel messages, end-of-round summary, round advancement
+- `src/march-madness/services/resultsProcessor.ts` — full pipeline: round-start sweep, per-game elimination + win celebration, picks/participants update, Claude Haiku personality DMs + channel messages, end-of-round summary, round advancement
 - `src/march-madness/scheduler/tournamentScheduler.ts` — cron job polling ESPN every 30 min
 - `docs/plans/2026-02-15-phase4-track2-design.md` — design document
 
 #### Files Modified:
 - `src/index.ts` — scheduler wired in after bot startup (prevents hang)
-- `src/march-madness/admin/routes/teams.ts` — Eliminate button runs full pipeline; `/sync` endpoint (Force Sync); `/simulate-round-end` endpoint (testing tool)
-- `src/march-madness/admin/public/dashboard.html` — Force Sync + Simulate Round End buttons on Dashboard quick actions; Add Pick button + modal on Picks tab
-- `src/march-madness/admin/public/js/dashboard.js` — `forceSyncESPN()`, `simulateRoundEndNow()`, `showAddPickModal()`, `handleAddPick()`
-- `src/march-madness/admin/public/js/api.js` — `syncTeams()`, `simulateRoundEnd()`
+- `src/march-madness/admin/routes/teams.ts` — Eliminate button runs full pipeline; `/sync` (Force Sync); `/simulate-round-end` (testing); `/simulate-game` (testing)
+- `src/march-madness/admin/public/dashboard.html` — Force Sync, Simulate Round End, Simulate Game Result buttons on Dashboard; Add Pick modal on Picks tab; Simulate Game modal
+- `src/march-madness/admin/public/js/dashboard.js` — `forceSyncESPN()`, `simulateRoundEndNow()`, `showSimulateGameModal()`, `showAddPickModal()`, `handleAddPick()`
+- `src/march-madness/admin/public/js/api.js` — `syncTeams()`, `simulateRoundEnd()`, `simulateGame()`
 - `tsconfig.json` — removed `declaration`/`declarationMap` (cut build time from 5+ min to ~30s)
 
 #### Key Design Decisions:
 - ESPN date-filtered URL (`&dates=YYYYMMDD`) prevents returning historical games
 - Round-start detection: check if any `eliminated_round = X` exists in DB — no new table
 - Channel announcement only fires when `eliminatedUsernames.length > 0`
-- End-of-round summary gated on `ROUND_END_DATES` map (hardcoded 2026 dates) — handles multi-day rounds
+- **End-of-round summary gated on elimination count** — `ROUND_ELIMINATION_COUNTS` map (32/16/8/4/2/1 per round) checked against DB. Replaces hardcoded date map — works for any tournament year, no date dependencies
 - `NEXT_ROUND` map drives automatic pool round advancement
-- Simulate Round End button bypasses date check for local testing — uses pool's `current_round`
-- Simulate Round End runs no-pick sweep first, then summary, then round advancement
+- **Winning picks** — when `game.winner` is processed, pending picks for that team are marked `won` and participants receive a congrats DM (`generateWinDM()` / `celebrateWinner()`)
+- Simulate Round End button bypasses elimination count check for local testing — uses pool's `current_round`
+- **Simulate Game Result** button (admin dashboard) accepts winner + loser + round, builds a mock `TournamentGame`, calls `processGames()` — full end-to-end test without live ESPN data
 - Add Pick modal (Picks tab) uses existing `POST /api/picks` upsert — admin override, no Slack required
 
 #### Testing Checklist:
@@ -260,6 +261,9 @@
 - [x] ESPN date filter prevents last year's championship from showing
 - [x] Simulate Round End eliminates no-pick participants, sends summary, advances round
 - [x] Manual pick entry via Add Pick modal (Picks tab)
+- [ ] Simulate Game Result: loser picks marked lost, participants eliminated, roast DMs sent
+- [ ] Simulate Game Result: winner picks marked won, congrats DMs sent
+- [ ] End-of-round summary fires only after all expected eliminations recorded
 
 ---
 
@@ -350,5 +354,5 @@
 
 ---
 
-**Last Session:** February 15, 2026 - Phase 4 Track 2 complete (ESPN API, scheduler, results processor, Simulate Round End)
+**Last Session:** February 16, 2026 - Phase 4 Track 2 additions: winning picks (mark won + congrats DM), Simulate Game Result admin tool, replaced hardcoded ROUND_END_DATES with elimination-count round detection
 **Next Session:** TBD - Phase 5 (Announcements & Leaderboard)

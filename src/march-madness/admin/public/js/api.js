@@ -82,6 +82,7 @@ const api = {
   bulkImportTeams: (data) => apiRequest('/teams/bulk', 'POST', data),
   syncTeams: () => apiRequest('/teams/sync', 'POST'),
   simulateRoundEnd: () => apiRequest('/teams/simulate-round-end', 'POST'),
+  simulateGame: (winner, loser, round) => apiRequest('/teams/simulate-game', 'POST', { winner, loser, round }),
   updateTeam: (id, data) => apiRequest(`/teams/${id}`, 'PUT', data),
   eliminateTeam: (id, round) => apiRequest(`/teams/${id}/eliminate`, 'POST', { round }),
   deleteTeam: (id) => apiRequest(`/teams/${id}`, 'DELETE'),

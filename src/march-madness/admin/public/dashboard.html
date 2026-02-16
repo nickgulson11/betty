@@ -67,6 +67,7 @@
           <button class="btn btn-primary" onclick="navigateTo('betty')">💬 Send Betty Message</button>
           <button class="btn btn-secondary" onclick="forceSyncESPN()" id="force-sync-btn">🔄 Force Sync Now</button>
           <button class="btn" onclick="simulateRoundEndNow()" id="simulate-round-end-btn" style="background: #fd7e14; color: white;">🧪 Simulate Round End</button>
+          <button class="btn" onclick="showSimulateGameModal()" style="background: #6f42c1; color: white;">🎮 Simulate Game Result</button>
           <div style="font-size: 13px; color: #666; margin-top: 6px;">ESPN Sync: <span id="last-sync-time">Never</span></div>
         </div>
 
@@ -492,6 +493,37 @@ Kansas, 1, Midwest</pre>
           </select>
         </div>
         <button type="submit" class="btn btn-primary">Save Pick</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Simulate Game Result Modal -->
+  <div id="simulate-game-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('simulate-game-modal')">&times;</span>
+      <h2>🎮 Simulate Game Result</h2>
+      <p style="color: #666; font-size: 0.9em;">Testing tool: runs the full game pipeline. Winner picks get marked won + congrats DMs sent. Loser gets eliminated + roast DMs sent.</p>
+      <form id="simulate-game-form">
+        <div class="form-group">
+          <label>Winning Team *</label>
+          <input type="text" id="sim-game-winner" required placeholder="Duke">
+        </div>
+        <div class="form-group">
+          <label>Losing Team *</label>
+          <input type="text" id="sim-game-loser" required placeholder="Kansas">
+        </div>
+        <div class="form-group">
+          <label>Round *</label>
+          <select id="sim-game-round" required>
+            <option value="Round of 64">Round of 64</option>
+            <option value="Round of 32">Round of 32</option>
+            <option value="Sweet Sixteen">Sweet Sixteen</option>
+            <option value="Elite Eight">Elite Eight</option>
+            <option value="Final Four">Final Four</option>
+            <option value="Championship">Championship</option>
+          </select>
+        </div>
+        <button type="submit" class="btn" style="background: #6f42c1; color: white;">Run Simulation</button>
       </form>
     </div>
   </div>

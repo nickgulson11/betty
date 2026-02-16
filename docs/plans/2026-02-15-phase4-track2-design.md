@@ -8,12 +8,11 @@
 
 ## Overview
 
-Track 2 closes the loop on tournament automation. When a team loses, Betty:
-1. Detects it via ESPN API (or admin manually eliminates via existing Teams tab)
-2. Marks affected picks as `lost`
-3. Marks affected participants as `eliminated`
-4. Sends individual roast DMs to eliminated participants
-5. Posts mid-round and end-of-round announcements to the main channel
+Track 2 closes the loop on tournament automation. When a game completes, Betty:
+1. Detects it via ESPN API (or admin manually triggers via Teams tab / Simulate Game)
+2. **Loser:** marks affected picks as `lost`, marks affected participants as `eliminated`, sends roast DMs + channel announcement
+3. **Winner:** marks affected picks as `won`, sends congrats DMs to surviving participants
+4. Posts end-of-round summary when all expected eliminations for the round are recorded
 
 No new DB tables. No schema changes. The existing `tournament_teams.status`, `picks.result`, and `participants.status` fields are sufficient.
 
@@ -61,21 +60,29 @@ Action: find all active participants with no pick submitted → mark them `elimi
 
 This fires once per round (the first time the scheduler sees Round X has begun), using the existing `tournament_teams` eliminated data as the detection signal. No new tracking table needed.
 
-**2. Per-game elimination (completed games)**
+**2. Per-game processing (completed games)**
 
 For each `STATUS_FINAL` tournament game:
-1. Extract losing team name from ESPN
-2. Fuzzy-match via `teamMatcher.ts` against `tournament_teams`
-3. If no match → log warning, skip (admin can manually eliminate via Teams tab)
-4. If team already `eliminated` → skip (idempotent)
-5. Mark team `eliminated` with round name
-6. Find all picks with `team_name === canonical name` and `result === 'pending'` → mark `lost`
-7. Find participants with those picks → mark `eliminated`
-8. Send roast DMs + mid-round channel announcement
+
+*Loser:*
+1. Extract losing team name from ESPN, fuzzy-match via `teamMatcher.ts`
+2. If no match → log warning, skip (admin can manually eliminate via Teams tab)
+3. If team already `eliminated` → skip (idempotent)
+4. Mark team `eliminated` with round name
+5. Find all picks for that team with `result === 'pending'` → mark `lost`
+6. Find participants with those picks → mark `eliminated`
+7. Send roast DMs + mid-round channel announcement
+
+*Winner:*
+1. Extract winning team name from ESPN, fuzzy-match via `teamMatcher.ts`
+2. Find all picks for that team with `result === 'pending'` → mark `won`
+3. Send congrats DMs to those participants
 
 **3. End-of-round summary**
 
-Trigger condition: all games for Round X in today's results are `STATUS_FINAL`.
+Trigger condition: all games for Round X in today's results are `STATUS_FINAL` **AND** elimination count for Round X in DB equals `ROUND_ELIMINATION_COUNTS[round]` (32/16/8/4/2/1).
+
+This replaces the old hardcoded `ROUND_END_DATES` map — no date dependencies, works for any tournament year.
 
 Action: send end-of-round summary to main channel — how many participants eliminated this round, how many still standing.
 
@@ -91,7 +98,8 @@ All messages use `personalityService.ts` + Claude for tone. Betty's personality 
 | No-pick sweep | Channel announcement | Main channel |
 | Team eliminated mid-round | Roast DM per affected participant | Individual participant |
 | Team eliminated mid-round | Roast announcement | Main channel |
-| All round games final | End-of-round summary | Main channel |
+| Team wins mid-round | Congrats DM per participant who picked them | Individual participant |
+| All expected round eliminations recorded | End-of-round summary | Main channel |
 
 **Mid-round channel message:** Betty roasts eliminated participants by name. Personality-driven, fun.
 
@@ -99,14 +107,17 @@ All messages use `personalityService.ts` + Claude for tone. Betty's personality 
 
 ---
 
-## Admin UI Changes (Teams Tab Only)
+## Admin UI Changes
 
-Two small additions to the existing Teams tab:
+**Dashboard Quick Actions:**
+1. **"Force Sync Now"** — triggers immediate ESPN fetch + `processGames()`, returns summary
+2. **"Simulate Round End"** — runs end-of-round pipeline bypassing elimination count check, for testing
+3. **"Simulate Game Result"** — modal accepting winner + loser + round; builds mock `TournamentGame` and calls `processGames()` end-to-end. Primary local testing tool for winner/loser pipeline.
 
-1. **Sync status line** — below stats bar: `"Last synced: 4 minutes ago"` (in-memory, resets on deploy)
-2. **"Force Sync Now" button** — replaces the existing 501 ESPN placeholder button. Triggers an immediate scheduler run and returns a summary.
+**Picks Tab:**
+4. **"Add Pick" modal** — admin override to manually enter a pick for any participant + round + team
 
-**Existing Eliminate button** (no UI change needed) — updated backend to run the full results processor pipeline after marking the team eliminated. This makes manual elimination functionally identical to automatic — same downstream effects.
+**Existing Eliminate button** (Teams tab, no UI change) — updated backend to run the full results processor pipeline after marking the team eliminated. Makes manual elimination functionally identical to automatic.
 
 ---
 
@@ -194,5 +205,7 @@ No live tournament data is available until March. Use the **existing Eliminate b
 - **Idempotency** — team already eliminated = skip, no double-processing
 - **Single code path** — `resultsProcessor.eliminateTeam()` called by both scheduler and admin Eliminate button
 - **ESPN team name fuzzy matching** — reuse existing `teamMatcher.ts` (Claude Haiku) to map ESPN nicknames to DB canonical names
-- **Personality on all messages** — all Betty Slack messages route through `personalityService.ts`
+- **Winning picks** — `celebrateWinner()` runs after each game's loser is processed; marks pending picks for the winning team as `won` and sends congrats DMs. All three `PickResult` values (`won`/`lost`/`pending`) are now actively used
+- **Elimination-count round detection** — `ROUND_ELIMINATION_COUNTS` (32/16/8/4/2/1) replaces hardcoded `ROUND_END_DATES`. End-of-round summary fires when DB elimination count equals expected — no date dependencies, works for any year
+- **Simulate Game Result** — admin testing tool that bypasses ESPN entirely; builds a mock `TournamentGame` and runs `processGames()` for full end-to-end testing of both winner and loser pipelines
 - **Force Sync = manual override** — useful if ESPN is down or returns bad data during tournament
