@@ -43,6 +43,9 @@ function setupEventListeners() {
   document.getElementById('edit-team-form').addEventListener('submit', handleEditTeam);
   document.getElementById('eliminate-team-form').addEventListener('submit', handleEliminateTeam);
 
+  // Pick Form
+  document.getElementById('add-pick-form').addEventListener('submit', handleAddPick);
+
   // Message content preview
   document.getElementById('message-content')?.addEventListener('input', updateMessagePreview);
 }
@@ -295,6 +298,71 @@ function filterPicks() {
   loadPicks();
 }
 
+async function showAddPickModal() {
+  // Populate participants dropdown (active only)
+  const allParticipants = await api.getParticipants();
+  const participantSelect = document.getElementById('pick-participant-select');
+  participantSelect.innerHTML = '<option value="">-- Select Participant --</option>';
+  allParticipants
+    .filter((p) => p.status === 'active')
+    .forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.slack_username || p.slack_user_id}`;
+      participantSelect.appendChild(opt);
+    });
+
+  // Populate teams dropdown (active only)
+  const allTeams = await api.getTeams();
+  const teamSelect = document.getElementById('pick-team-select');
+  teamSelect.innerHTML = '<option value="">-- Select Team --</option>';
+  allTeams
+    .filter((t) => t.status === 'active')
+    .sort((a, b) => (a.seed || 99) - (b.seed || 99) || a.team_name.localeCompare(b.team_name))
+    .forEach((t) => {
+      const opt = document.createElement('option');
+      opt.value = t.team_name;
+      opt.textContent = t.seed ? `(${t.seed}) ${t.team_name}` : t.team_name;
+      teamSelect.appendChild(opt);
+    });
+
+  // Default round to current pool round
+  if (currentPool && currentPool.current_round) {
+    document.getElementById('pick-round-select').value = currentPool.current_round;
+  }
+
+  document.getElementById('add-pick-form').reset();
+  // Re-apply defaults after reset
+  if (currentPool && currentPool.current_round) {
+    document.getElementById('pick-round-select').value = currentPool.current_round;
+  }
+
+  document.getElementById('add-pick-modal').classList.add('active');
+}
+
+async function handleAddPick(e) {
+  e.preventDefault();
+
+  const participant_id = document.getElementById('pick-participant-select').value;
+  const round = document.getElementById('pick-round-select').value;
+  const team_name = document.getElementById('pick-team-select').value;
+
+  if (!participant_id || !round || !team_name) {
+    alert('Please fill in all fields.');
+    return;
+  }
+
+  try {
+    await api.createPick({ participant_id, round, team_name });
+    closeModal('add-pick-modal');
+    alert(`✅ Pick saved: ${team_name} for ${round}`);
+    await loadPicks();
+  } catch (error) {
+    console.error('Error adding pick:', error);
+    alert(`Failed to save pick: ${error.message}`);
+  }
+}
+
 async function loadPicksSummary() {
   try {
     const summary = await api.getPicksSummary();
@@ -518,6 +586,54 @@ async function clearAllTeams() {
   } catch (error) {
     console.error('Error clearing teams:', error);
     alert('Failed to clear teams');
+  }
+}
+
+async function forceSyncESPN() {
+  const btn = document.getElementById('force-sync-btn');
+  const syncTimeEl = document.getElementById('last-sync-time');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Syncing...';
+
+  try {
+    const result = await api.syncTeams();
+    const now = new Date().toLocaleTimeString();
+    syncTimeEl.textContent = `Last synced at ${now}`;
+    alert(`✅ ${result.message}`);
+    await loadTeams();
+  } catch (error) {
+    console.error('Error during ESPN sync:', error);
+    alert('Sync failed. Check Railway logs for details.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 Force Sync Now';
+  }
+}
+
+async function simulateRoundEndNow() {
+  const round = currentPool?.current_round;
+  if (!round) {
+    alert('No current round set on the pool. Update Pool Settings first.');
+    return;
+  }
+
+  if (!confirm(`Simulate end of ${round}?\n\nThis will:\n• Send the end-of-round summary to Slack\n• Advance the pool to the next round\n• Announce that picks are open\n\nThis cannot be undone.`)) return;
+
+  const btn = document.getElementById('simulate-round-end-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running...';
+
+  try {
+    const result = await api.simulateRoundEnd();
+    alert(`✅ ${result.message}`);
+    await loadDashboard();
+  } catch (error) {
+    console.error('Error simulating round end:', error);
+    alert(`Failed: ${error.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🧪 Simulate Round End';
   }
 }
 

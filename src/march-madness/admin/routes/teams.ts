@@ -3,6 +3,8 @@ import * as teamModel from '../../models/tournamentTeam';
 import * as poolModel from '../../models/pool';
 import { CreateTeamInput, UpdateTeamInput, BulkImportInput } from '../../types/tournamentTeam';
 import { TournamentRound } from '../../types/pool';
+import { eliminateTeam, processGames, simulateRoundEnd } from '../../services/resultsProcessor';
+import { fetchTodaysGames } from '../../services/ncaaService';
 
 const router = express.Router();
 
@@ -123,14 +125,44 @@ router.post('/bulk', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/teams/fetch-espn
- * Placeholder — ESPN integration coming in Phase 4 Track 2
+ * POST /api/teams/sync
+ * Trigger an immediate ESPN fetch + results processing cycle.
+ * Used by the "Force Sync Now" button in the admin UI.
  */
-router.post('/fetch-espn', (_req: Request, res: Response) => {
-  res.status(501).json({
-    message: 'ESPN integration coming in Phase 4 Track 2',
-    status: 'not_implemented',
-  });
+router.post('/sync', async (_req: Request, res: Response) => {
+  try {
+    console.log('[teams/sync] Manual sync triggered by admin');
+    const games = await fetchTodaysGames();
+    const result = await processGames(games);
+    res.json({
+      success: true,
+      message: `Sync complete: ${result.gamesProcessed} game(s) processed, ${result.teamsEliminated.length} team(s) eliminated`,
+      result,
+    });
+  } catch (error) {
+    console.error('Error during manual sync:', error);
+    res.status(500).json({ error: 'Sync failed' });
+  }
+});
+
+/**
+ * POST /api/teams/simulate-round-end
+ * Testing tool: runs end-of-round pipeline for the pool's current round,
+ * bypassing the tournament date check.
+ */
+router.post('/simulate-round-end', async (_req: Request, res: Response) => {
+  try {
+    console.log('[teams/simulate-round-end] Simulate round end triggered by admin');
+    const result = await simulateRoundEnd();
+    res.json({
+      success: true,
+      message: `End-of-round simulated for ${result.round}${result.nextRound ? ` → advanced to ${result.nextRound}` : ' → tournament complete'}`,
+      result,
+    });
+  } catch (error: any) {
+    console.error('Error simulating round end:', error);
+    res.status(500).json({ error: error.message || 'Failed to simulate round end' });
+  }
 });
 
 /**
@@ -173,7 +205,8 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 /**
  * POST /api/teams/:id/eliminate
- * Mark a team as eliminated in a given round
+ * Mark a team as eliminated and run the full downstream pipeline:
+ * updates picks, eliminates participants, sends Slack DMs + channel announcement.
  */
 router.post('/:id/eliminate', async (req: Request, res: Response) => {
   try {
@@ -184,13 +217,33 @@ router.post('/:id/eliminate', async (req: Request, res: Response) => {
       return;
     }
 
-    const team = await teamModel.markTeamEliminated(req.params.id, round as TournamentRound);
+    // Look up team by ID to get canonical name
+    const team = await teamModel.getTeamById(req.params.id);
     if (!team) {
       res.status(404).json({ error: 'Team not found' });
       return;
     }
 
-    res.json(team);
+    // Run full elimination pipeline (marks team, updates picks, eliminates participants, sends Slack)
+    const result = await eliminateTeam(team.team_name, round as TournamentRound);
+
+    if (result.teamNotFound) {
+      res.status(404).json({ error: 'Team not found in pool' });
+      return;
+    }
+
+    if (result.alreadyEliminated) {
+      res.status(409).json({ error: 'Team is already eliminated' });
+      return;
+    }
+
+    // Return updated team record for the UI
+    const updatedTeam = await teamModel.getTeamById(req.params.id);
+    res.json({
+      team: updatedTeam,
+      picksMarkedLost: result.picksMarkedLost,
+      participantsEliminated: result.participantsEliminated.length,
+    });
   } catch (error) {
     console.error('Error eliminating team:', error);
     res.status(500).json({ error: 'Failed to eliminate team' });

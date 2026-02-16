@@ -65,7 +65,9 @@
           <h3>Quick Actions</h3>
           <button class="btn btn-primary" onclick="showAddParticipantModal()">➕ Add Participant</button>
           <button class="btn btn-primary" onclick="navigateTo('betty')">💬 Send Betty Message</button>
-          <button class="btn btn-secondary" onclick="refreshDashboard()">🔄 Refresh Data</button>
+          <button class="btn btn-secondary" onclick="forceSyncESPN()" id="force-sync-btn">🔄 Force Sync Now</button>
+          <button class="btn" onclick="simulateRoundEndNow()" id="simulate-round-end-btn" style="background: #fd7e14; color: white;">🧪 Simulate Round End</button>
+          <div style="font-size: 13px; color: #666; margin-top: 6px;">ESPN Sync: <span id="last-sync-time">Never</span></div>
         </div>
 
         <div class="recent-activity">
@@ -123,6 +125,7 @@
         <h2>Picks Management</h2>
 
         <div class="view-controls">
+          <button class="btn btn-primary" onclick="showAddPickModal()">➕ Add Pick</button>
           <div class="filter-group">
             <label>Round:</label>
             <select id="round-filter" onchange="filterPicks()">
@@ -157,7 +160,7 @@
       <div id="teams-view" class="view">
         <h2>Tournament Teams</h2>
 
-        <div class="stats-grid" style="margin-bottom: 20px;">
+        <div class="stats-grid" style="margin-bottom: 12px;">
           <div class="stat-card">
             <div class="stat-value" id="total-teams">0</div>
             <div class="stat-label">Total Teams</div>
@@ -175,7 +178,6 @@
         <div class="view-controls">
           <button class="btn btn-primary" onclick="showAddTeamModal()">➕ Add Team</button>
           <button class="btn btn-primary" onclick="showBulkImportModal()">📋 Bulk Import</button>
-          <button class="btn btn-secondary" title="Coming in Track 2 — ESPN integration" onclick="alert('ESPN integration coming in Phase 4 Track 2!')" style="opacity: 0.6; cursor: not-allowed;">🏀 Fetch from ESPN</button>
           <button class="btn" onclick="clearAllTeams()" style="background: #dc3545; color: white;">🗑️ Clear All Teams</button>
           <div class="filter-group">
             <label>Filter:</label>
@@ -456,6 +458,41 @@ Kansas, 1, Midwest</pre>
         <textarea id="bulk-import-text" rows="14" placeholder="Paste teams here..." style="font-family: monospace;"></textarea>
       </div>
       <button class="btn btn-primary" onclick="submitBulkImport()">📋 Import Teams</button>
+    </div>
+  </div>
+
+  <!-- Add Pick Modal -->
+  <div id="add-pick-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('add-pick-modal')">&times;</span>
+      <h2>Add Pick</h2>
+      <p style="color: #666; font-size: 0.9em;">Admin override — bypasses Slack. Existing pick for the selected participant + round will be replaced.</p>
+      <form id="add-pick-form">
+        <div class="form-group">
+          <label>Participant *</label>
+          <select id="pick-participant-select" required>
+            <option value="">-- Select Participant --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Round *</label>
+          <select id="pick-round-select" required>
+            <option value="Round of 64">Round of 64</option>
+            <option value="Round of 32">Round of 32</option>
+            <option value="Sweet Sixteen">Sweet Sixteen</option>
+            <option value="Elite Eight">Elite Eight</option>
+            <option value="Final Four">Final Four</option>
+            <option value="Championship">Championship</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Team *</label>
+          <select id="pick-team-select" required>
+            <option value="">-- Select Team --</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Pick</button>
+      </form>
     </div>
   </div>
 

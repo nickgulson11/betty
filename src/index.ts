@@ -99,6 +99,11 @@ async function main() {
     // Start unified server (Slack bot + admin console on same port)
     await startMarchMadnessBot(port);
 
+    // Start ESPN polling scheduler (imported after bot is up to avoid blocking startup)
+    const { startTournamentScheduler, stopTournamentScheduler } = await import('./march-madness/scheduler/tournamentScheduler');
+    console.log('⏰ Starting tournament scheduler...');
+    startTournamentScheduler();
+
     console.log('\n' + '='.repeat(50));
     console.log('✅ Betty March Madness is ready!');
     console.log('='.repeat(50));
@@ -106,7 +111,18 @@ async function main() {
     console.log(`   🏀 Slack Bot: /slack/events`);
     console.log(`   🔐 Admin Console: /admin`);
     console.log(`   📡 API: /api`);
-    console.log(`   🔑 Admin Password: ${process.env.ADMIN_PASSWORD || 'changeme'}\n`);
+    console.log(`   🔑 Admin Password: ${process.env.ADMIN_PASSWORD || 'changeme'}`);
+    console.log(`   ⏰ ESPN Scheduler: polling every 30 minutes\n`);
+
+    // Graceful shutdown
+    const shutdown = async () => {
+      console.log('\n🛑 Shutting down gracefully...');
+      stopTournamentScheduler();
+      process.exit(0);
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
 
   } else {
     console.error(`❌ Unknown mode: ${mode}`);

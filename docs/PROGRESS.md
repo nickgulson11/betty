@@ -217,25 +217,49 @@
 
 ---
 
-### 📋 Track 2: ESPN API Integration (NOT STARTED)
+### ✅ Track 2: ESPN API Integration (COMPLETE)
 
-**Target Start:** Next session (after Track 1 testing passes)
-**Estimated Duration:** 1-2 sessions
+**Designed:** February 15, 2026
+**Completed:** February 15, 2026
+**Design Doc:** `docs/plans/2026-02-15-phase4-track2-design.md`
 
 #### Schema Decision:
-- **No `game_results` table** — unnecessary for survivor pool logic
-- Tiebreaker is determined by highest sum of seeds across all picks — no extra columns needed
+- **No new DB tables** — round-start detection uses existing `tournament_teams.eliminated_round` as signal
 - Team elimination tracked entirely via `tournament_teams.status` + `tournament_teams.eliminated_round`
 - Pick outcomes tracked entirely via `picks.result` (won/lost/pending)
+- Idempotency: team already eliminated = skip, no double-processing
 
-#### Tasks Remaining:
-- [ ] New service: `src/march-madness/services/ncaaService.ts` — ESPN API calls (fetch bracket, fetch game results)
-- [ ] New service: `src/march-madness/services/resultsProcessor.ts` — take ESPN results, mark teams eliminated in `tournament_teams`, update `picks.result` (won/lost), eliminate participants
-- [ ] New route: `src/march-madness/admin/routes/results.ts` — manual team elimination entry + trigger auto-fetch
-- [ ] New scheduler: `src/march-madness/scheduler/tournamentScheduler.ts` — cron job polling ESPN every 30 min during active rounds
-- [ ] Wire scheduler into startup (`src/index.ts` or `slackBot.ts`)
-- [ ] Admin UI: Results tab — trigger ESPN fetch, manual team elimination, "Process Round Results" button
-- [ ] Replace ESPN button placeholder (501) with real implementation
+#### Files Created:
+- `src/march-madness/services/ncaaService.ts` — ESPN scoreboard API (date-filtered, TRNMNT games only, never throws)
+- `src/march-madness/services/resultsProcessor.ts` — full pipeline: round-start sweep, per-game elimination, picks/participants update, Claude Haiku personality DMs + channel messages, end-of-round summary, round advancement
+- `src/march-madness/scheduler/tournamentScheduler.ts` — cron job polling ESPN every 30 min
+- `docs/plans/2026-02-15-phase4-track2-design.md` — design document
+
+#### Files Modified:
+- `src/index.ts` — scheduler wired in after bot startup (prevents hang)
+- `src/march-madness/admin/routes/teams.ts` — Eliminate button runs full pipeline; `/sync` endpoint (Force Sync); `/simulate-round-end` endpoint (testing tool)
+- `src/march-madness/admin/public/dashboard.html` — Force Sync + Simulate Round End buttons on Dashboard quick actions; Add Pick button + modal on Picks tab
+- `src/march-madness/admin/public/js/dashboard.js` — `forceSyncESPN()`, `simulateRoundEndNow()`, `showAddPickModal()`, `handleAddPick()`
+- `src/march-madness/admin/public/js/api.js` — `syncTeams()`, `simulateRoundEnd()`
+- `tsconfig.json` — removed `declaration`/`declarationMap` (cut build time from 5+ min to ~30s)
+
+#### Key Design Decisions:
+- ESPN date-filtered URL (`&dates=YYYYMMDD`) prevents returning historical games
+- Round-start detection: check if any `eliminated_round = X` exists in DB — no new table
+- Channel announcement only fires when `eliminatedUsernames.length > 0`
+- End-of-round summary gated on `ROUND_END_DATES` map (hardcoded 2026 dates) — handles multi-day rounds
+- `NEXT_ROUND` map drives automatic pool round advancement
+- Simulate Round End button bypasses date check for local testing — uses pool's `current_round`
+- Simulate Round End runs no-pick sweep first, then summary, then round advancement
+- Add Pick modal (Picks tab) uses existing `POST /api/picks` upsert — admin override, no Slack required
+
+#### Testing Checklist:
+- [x] Force Sync button returns clean no-op in February (0 games fetched)
+- [x] Eliminate button sends roast DMs + channel announcement
+- [x] Channel announcement suppressed when no participants eliminated
+- [x] ESPN date filter prevents last year's championship from showing
+- [x] Simulate Round End eliminates no-pick participants, sends summary, advances round
+- [x] Manual pick entry via Add Pick modal (Picks tab)
 
 ---
 
@@ -317,7 +341,7 @@
 | Phase 1: Foundation | ✅ Complete | Feb 8, 2025 | 1 session |
 | Phase 2: Admin Console | ✅ Complete | Feb 9, 2025 | 1 session |
 | Phase 3: Participant Experience | ✅ Complete | Feb 9, 2025 | 1 session |
-| Phase 4: Tournament Automation | ⏳ Planned | TBD | ~2-3 sessions |
+| Phase 4: Tournament Automation | ✅ Complete | Feb 15, 2026 | 2 sessions |
 | Phase 5: Announcements | ⏳ Planned | TBD | ~1-2 sessions |
 | Phase 6: Testing | ⏳ Planned | TBD | ~1-2 sessions |
 | Phase 7: Launch | ⏳ Planned | Mid-March 2025 | ~1 session |
@@ -326,5 +350,5 @@
 
 ---
 
-**Last Session:** February 12, 2026 - Phase 4 Track 1 Complete + Picks page username fix deployed
-**Next Session:** TBD - Start Phase 4 Track 2 (ESPN API Integration)
+**Last Session:** February 15, 2026 - Phase 4 Track 2 complete (ESPN API, scheduler, results processor, Simulate Round End)
+**Next Session:** TBD - Phase 5 (Announcements & Leaderboard)
