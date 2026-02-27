@@ -685,6 +685,13 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
     const allFinal = roundGames.every((g) => g.status === 'final');
     if (!allFinal) continue;
 
+    // Only process end-of-round if this round is still the current round in the pool
+    // (prevents re-processing rounds that have already been completed and advanced)
+    if (round !== currentPool.current_round) {
+      console.log(`[resultsProcessor] ${round} is complete but pool has already advanced to ${currentPool.current_round} — skipping end-of-round processing`);
+      continue;
+    }
+
     // Only send end-of-round summary when all expected eliminations for the round are recorded
     const eliminationCount = await getEliminationCountForRound(poolId, round);
     const expectedEliminations = ROUND_ELIMINATION_COUNTS[round];
