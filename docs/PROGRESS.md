@@ -1,14 +1,14 @@
 # Betty March Madness - Project Progress Tracker
 
-**Last Updated:** February 9, 2025
+**Last Updated:** February 26, 2026
 
 ---
 
 ## 🎯 Overall Status
 
-**Current Phase:** Phase 3 - Complete ✅
-**Next Phase:** Phase 4 - Tournament Automation
-**Target Launch:** March 2025 (March Madness Tournament)
+**Current Phase:** Phase 4 - Complete ✅
+**Next Phase:** Phase 5 - Announcements & Leaderboard
+**Target Launch:** March 2026 (March Madness Tournament)
 
 ---
 
@@ -151,10 +151,11 @@
 
 ---
 
-## 🔄 Phase 4: Tournament Automation (IN PROGRESS)
+## ✅ Phase 4: Tournament Automation (COMPLETE)
 
 **Started:** February 12, 2026
-**Estimated Duration:** 2-3 sessions
+**Completed:** February 26, 2026
+**Duration:** 3 sessions
 
 ---
 
@@ -261,9 +262,62 @@
 - [x] ESPN date filter prevents last year's championship from showing
 - [x] Simulate Round End eliminates no-pick participants, sends summary, advances round
 - [x] Manual pick entry via Add Pick modal (Picks tab)
-- [ ] Simulate Game Result: loser picks marked lost, participants eliminated, roast DMs sent
-- [ ] Simulate Game Result: winner picks marked won, congrats DMs sent
-- [ ] End-of-round summary fires only after all expected eliminations recorded
+- [x] Simulate Game Result: loser picks marked lost, participants eliminated, roast DMs sent
+- [x] Simulate Game Result: winner picks marked won, congrats DMs sent
+- [x] End-of-round summary fires only after all expected eliminations recorded
+
+---
+
+### ✅ Phase 4 Enhancements: Pick Locking & Testing Features (COMPLETE)
+
+**Completed:** February 26, 2026
+**Duration:** 1 session
+
+#### Schema Changes:
+- `pools.override_date DATE` — manual date override for testing with historical tournament data
+- `pools.current_round_locked BOOLEAN DEFAULT FALSE` — pick deadline enforcement
+
+#### Files Created:
+- `database/migrations/002_add_pool_override_date.sql`
+- `database/migrations/003_add_pool_current_round_locked.sql`
+
+#### Files Modified:
+- `src/march-madness/types/pool.ts` — added override_date + current_round_locked to Pool/UpdatePoolInput
+- `src/march-madness/models/pool.ts` — added handling for both new fields
+- `src/march-madness/services/ncaaService.ts` — getTodayUrl() uses override_date; new hasRoundStarted() function
+- `src/march-madness/services/pickManager.ts` — pick deadline validation: fast path (DB check) + on-demand ESPN verification
+- `src/march-madness/services/resultsProcessor.ts` — runNoPickSweep() locks round; round advancement unlocks
+- `src/march-madness/admin/public/dashboard.html` — date override toggle + date picker; lock/unlock buttons
+- `src/march-madness/admin/public/js/dashboard.js` — toggleDateOverride(), updateLockStatusDisplay(), lockCurrentRound(), unlockCurrentRound()
+
+#### Key Features:
+
+**Date Override (Testing Tool):**
+- Admin can enable "Manually Set Date" checkbox in Pool Settings
+- Date picker allows selecting historical dates (e.g., 2025-03-20 for Round of 64)
+- ESPN API uses override date instead of current date
+- Enables stepping through last year's tournament day-by-day for testing
+- Easy to disable (uncheck box) to return to real-time operation
+
+**Pick Locking (Deadline Enforcement):**
+- Picks automatically lock when games start (no 20-min window exploit)
+- Two-tier validation:
+  1. Fast path: check `pool.current_round_locked` (instant rejection if TRUE)
+  2. On-demand check: if unlocked, verify with ESPN API; lock immediately if games started
+- Scheduler also locks round during no-pick sweep (backup mechanism)
+- Manual lock/unlock controls in admin UI (orange section)
+- Auto-unlocks when advancing to next round
+- Lock status displayed with color-coded badge (🔒 red / 🔓 green)
+
+#### Testing:
+- [x] Date override enables/disables correctly
+- [x] ESPN uses override date when set
+- [x] Pick locking prevents submissions after games start
+- [x] Auto-lock via on-demand ESPN check works
+- [x] Manual lock/unlock buttons work
+- [x] Round advancement auto-unlocks picks
+- [x] Full day-by-day tournament simulation tested
+- [x] Deployed to production successfully
 
 ---
 
@@ -274,11 +328,12 @@
 
 ### Tasks Remaining:
 - [ ] Main channel announcements
-- [ ] **Pick deadline reminders** (moved from Phase 3)
 - [ ] Round results announcements
 - [ ] Elimination messages
 - [ ] Leaderboard generation
 - [ ] Personality mode integration
+
+**Note:** Pick deadline enforcement completed in Phase 4 Enhancements (Feb 26, 2026)
 
 ---
 
@@ -345,14 +400,14 @@
 | Phase 1: Foundation | ✅ Complete | Feb 8, 2025 | 1 session |
 | Phase 2: Admin Console | ✅ Complete | Feb 9, 2025 | 1 session |
 | Phase 3: Participant Experience | ✅ Complete | Feb 9, 2025 | 1 session |
-| Phase 4: Tournament Automation | ✅ Complete | Feb 15, 2026 | 2 sessions |
+| Phase 4: Tournament Automation + Enhancements | ✅ Complete | Feb 26, 2026 | 3 sessions |
 | Phase 5: Announcements | ⏳ Planned | TBD | ~1-2 sessions |
 | Phase 6: Testing | ⏳ Planned | TBD | ~1-2 sessions |
-| Phase 7: Launch | ⏳ Planned | Mid-March 2025 | ~1 session |
+| Phase 7: Launch | ⏳ Planned | Mid-March 2026 | ~1 session |
 
 **Total Estimated Time Remaining:** 6-11 sessions (~12-22 hours)
 
 ---
 
-**Last Session:** February 16, 2026 - Phase 4 Track 2 additions: winning picks (mark won + congrats DM), Simulate Game Result admin tool, replaced hardcoded ROUND_END_DATES with elimination-count round detection
+**Last Session:** February 26, 2026 - Phase 4 Enhancements: pick locking (deadline enforcement with on-demand ESPN check + auto-unlock on round advancement), date override for historical tournament testing, admin UI controls for both features
 **Next Session:** TBD - Phase 5 (Announcements & Leaderboard)
