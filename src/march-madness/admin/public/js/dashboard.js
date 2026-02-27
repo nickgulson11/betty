@@ -739,6 +739,63 @@ async function loadPoolSettings() {
   document.getElementById('pool-round').value = currentPool.current_round || '';
   document.getElementById('pool-status-select').value = currentPool.status;
   document.getElementById('pool-entry-fee').value = currentPool.entry_fee || '';
+
+  // Load override_date settings
+  const overrideDateEnabled = document.getElementById('override-date-enabled');
+  const overrideDatePicker = document.getElementById('override-date-picker');
+  const overrideDatePickerGroup = document.getElementById('override-date-picker-group');
+
+  if (currentPool.override_date) {
+    // Date override is enabled
+    overrideDateEnabled.checked = true;
+    overrideDatePickerGroup.style.display = 'block';
+    // Convert date to YYYY-MM-DD format for input[type=date]
+    const dateStr = new Date(currentPool.override_date).toISOString().split('T')[0];
+    overrideDatePicker.value = dateStr;
+  } else {
+    // Date override is disabled
+    overrideDateEnabled.checked = false;
+    overrideDatePickerGroup.style.display = 'none';
+    overrideDatePicker.value = '';
+  }
+
+  // Update lock status display
+  updateLockStatusDisplay();
+}
+
+function updateLockStatusDisplay() {
+  if (!currentPool) return;
+
+  const statusDisplay = document.getElementById('lock-status-display');
+  const lockBtn = document.getElementById('lock-btn');
+  const unlockBtn = document.getElementById('unlock-btn');
+
+  if (currentPool.current_round_locked) {
+    statusDisplay.textContent = '🔒 Status: LOCKED';
+    statusDisplay.style.color = '#d32f2f';
+    lockBtn.disabled = true;
+    lockBtn.style.opacity = '0.5';
+    unlockBtn.disabled = false;
+    unlockBtn.style.opacity = '1';
+  } else {
+    statusDisplay.textContent = '🔓 Status: UNLOCKED';
+    statusDisplay.style.color = '#388e3c';
+    lockBtn.disabled = false;
+    lockBtn.style.opacity = '1';
+    unlockBtn.disabled = true;
+    unlockBtn.style.opacity = '0.5';
+  }
+}
+
+function toggleDateOverride() {
+  const overrideDateEnabled = document.getElementById('override-date-enabled').checked;
+  const overrideDatePickerGroup = document.getElementById('override-date-picker-group');
+
+  if (overrideDateEnabled) {
+    overrideDatePickerGroup.style.display = 'block';
+  } else {
+    overrideDatePickerGroup.style.display = 'none';
+  }
 }
 
 async function updatePool() {
@@ -748,10 +805,16 @@ async function updatePool() {
   const status = document.getElementById('pool-status-select').value;
   const entry_fee = parseFloat(document.getElementById('pool-entry-fee').value) || null;
 
-  console.log('Updating pool with:', { name, current_round, status, entry_fee }); // Debug log
+  // Read override_date setting
+  const overrideDateEnabled = document.getElementById('override-date-enabled').checked;
+  const override_date = overrideDateEnabled
+    ? document.getElementById('override-date-picker').value || null
+    : null;
+
+  console.log('Updating pool with:', { name, current_round, status, entry_fee, override_date }); // Debug log
 
   try {
-    const updated = await api.updatePool(currentPool.id, { name, current_round, status, entry_fee });
+    const updated = await api.updatePool(currentPool.id, { name, current_round, status, entry_fee, override_date });
     console.log('Pool updated:', updated); // Debug log
     currentPool = updated; // Update local cache with fresh data
     alert('Pool settings updated');
@@ -759,6 +822,52 @@ async function updatePool() {
   } catch (error) {
     console.error('Error updating pool:', error);
     alert('Failed to update pool settings');
+  }
+}
+
+async function lockCurrentRound() {
+  if (!currentPool) {
+    alert('No pool loaded');
+    return;
+  }
+
+  const confirmed = confirm(
+    `Lock picks for ${currentPool.current_round}?\n\nParticipants will no longer be able to submit or modify picks for this round.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const updated = await api.updatePool(currentPool.id, { current_round_locked: true });
+    currentPool = updated;
+    updateLockStatusDisplay();
+    alert(`${currentPool.current_round} picks are now LOCKED`);
+  } catch (error) {
+    console.error('Error locking round:', error);
+    alert('Failed to lock round');
+  }
+}
+
+async function unlockCurrentRound() {
+  if (!currentPool) {
+    alert('No pool loaded');
+    return;
+  }
+
+  const confirmed = confirm(
+    `Unlock picks for ${currentPool.current_round}?\n\nParticipants will be able to submit or modify picks again.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const updated = await api.updatePool(currentPool.id, { current_round_locked: false });
+    currentPool = updated;
+    updateLockStatusDisplay();
+    alert(`${currentPool.current_round} picks are now UNLOCKED`);
+  } catch (error) {
+    console.error('Error unlocking round:', error);
+    alert('Failed to unlock round');
   }
 }
 

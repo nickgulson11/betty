@@ -76,6 +76,14 @@ export async function updatePool(id: string, input: UpdatePoolInput): Promise<Po
     updates.push(`entry_fee = $${paramCount++}`);
     values.push(input.entry_fee);
   }
+  if (input.override_date !== undefined) {
+    updates.push(`override_date = $${paramCount++}`);
+    values.push(input.override_date);
+  }
+  if (input.current_round_locked !== undefined) {
+    updates.push(`current_round_locked = $${paramCount++}`);
+    values.push(input.current_round_locked);
+  }
 
   if (updates.length === 0) {
     return getPoolById(id);

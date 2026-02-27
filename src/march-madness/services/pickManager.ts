@@ -4,6 +4,7 @@ import * as poolModel from '../models/pool';
 import * as teamModel from '../models/tournamentTeam';
 import { sendPickConfirmation, sendPickUpdateConfirmation } from './slackMessaging';
 import { matchTeamName } from './teamMatcher';
+import { hasRoundStarted } from './ncaaService';
 
 export interface PickSubmissionResult {
   success: boolean;
@@ -82,6 +83,30 @@ export async function submitPick(
         success: false,
         message: 'No round is currently active. Please wait for the tournament to start.',
         error: 'NO_CURRENT_ROUND',
+      };
+    }
+
+    // Check if picks are locked (fast path)
+    if (pool.current_round_locked) {
+      return {
+        success: false,
+        message: `The ${currentRound} has started and picks are locked. You can no longer submit or modify picks for this round.`,
+        error: 'ROUND_LOCKED',
+      };
+    }
+
+    // If not locked, verify with ESPN (on-demand check)
+    // This prevents the first person after games start from slipping through
+    const roundStarted = await hasRoundStarted(currentRound);
+    if (roundStarted) {
+      // Lock the round immediately
+      await poolModel.updatePool(pool.id, { current_round_locked: true });
+      console.log(`[pickManager] Round ${currentRound} started - locked pool on-demand`);
+
+      return {
+        success: false,
+        message: `The ${currentRound} has started and picks are now locked. You can no longer submit or modify picks for this round.`,
+        error: 'ROUND_LOCKED',
       };
     }
 

@@ -297,6 +297,44 @@
             <input type="number" id="pool-entry-fee" step="0.01" min="0" placeholder="10.00">
           </div>
 
+          <hr style="margin: 30px 0; border: 1px solid #e0e0e0;">
+
+          <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; border: 1px solid #2196f3;">
+            <h3 style="margin-top: 0; color: #1565c0;">📅 Date Override (Testing)</h3>
+            <p style="margin-bottom: 15px; color: #1565c0; font-size: 0.9em;">
+              For testing with historical tournament data. When enabled, ESPN API will use your chosen date instead of today's date.
+            </p>
+
+            <div class="form-group">
+              <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" id="override-date-enabled" onchange="toggleDateOverride()" style="margin-right: 10px; cursor: pointer;">
+                <strong>Manually Set Date</strong>
+              </label>
+            </div>
+
+            <div class="form-group" id="override-date-picker-group" style="display: none;">
+              <label>Override Date</label>
+              <input type="date" id="override-date-picker">
+              <p style="margin-top: 5px; color: #666; font-size: 0.85em;">
+                All ESPN API calls will use this date. Uncheck the box above to return to using the current date.
+              </p>
+            </div>
+          </div>
+
+          <hr style="margin: 30px 0; border: 1px solid #e0e0e0;">
+
+          <div style="background: #fff3e0; padding: 15px; border-radius: 5px; border: 1px solid #ff9800;">
+            <h3 style="margin-top: 0; color: #e65100;">🔒 Pick Lock Controls</h3>
+            <p style="margin-bottom: 15px; color: #e65100; font-size: 0.9em;">
+              Manual override to lock/unlock picks for the current round. Normally locked automatically when games start.
+            </p>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span id="lock-status-display" style="font-weight: bold;">Status: Loading...</span>
+              <button class="btn" id="lock-btn" onclick="lockCurrentRound()" style="background: #f44336; color: white;">🔒 Lock Picks</button>
+              <button class="btn" id="unlock-btn" onclick="unlockCurrentRound()" style="background: #4caf50; color: white;">🔓 Unlock Picks</button>
+            </div>
+          </div>
+
           <button class="btn btn-primary" onclick="updatePool()">💾 Save Settings</button>
 
           <hr style="margin: 30px 0; border: 1px solid #e0e0e0;">

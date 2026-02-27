@@ -1,4 +1,5 @@
 import { TournamentRound } from '../types/pool';
+import { getCurrentPool } from '../models/pool';
 
 export type GameStatus = 'final' | 'in_progress' | 'scheduled';
 
@@ -19,12 +20,25 @@ const ESPN_BASE_URL =
 /**
  * Build today's ESPN URL with an explicit date — prevents the API from
  * returning historical tournament games when no games are scheduled today.
+ * If pool has override_date set, uses that date instead of current date (for testing).
  */
-function getTodayUrl(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+async function getTodayUrl(): Promise<string> {
+  let targetDate = new Date();
+
+  // Check if pool has an override date set (for testing with historical data)
+  try {
+    const pool = await getCurrentPool();
+    if (pool?.override_date) {
+      targetDate = new Date(pool.override_date);
+      console.log(`[ncaaService] Using override date: ${targetDate.toISOString().split('T')[0]}`);
+    }
+  } catch (error) {
+    console.warn('[ncaaService] Could not fetch pool override date, using current date');
+  }
+
+  const year = targetDate.getFullYear();
+  const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const day = String(targetDate.getDate()).padStart(2, '0');
   return `${ESPN_BASE_URL}&dates=${year}${month}${day}`;
 }
 
@@ -86,13 +100,63 @@ function parseStatus(statusName: string): GameStatus {
 }
 
 /**
+ * Check if any games for a specific round have started.
+ * Used for pick deadline validation.
+ * Returns true if ANY game in the round is IN_PROGRESS or FINAL.
+ * Never throws — returns false on any error (fail open).
+ */
+export async function hasRoundStarted(round: string): Promise<boolean> {
+  try {
+    const url = await getTodayUrl();
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`[ncaaService] ESPN API returned HTTP ${response.status}`);
+      return false; // Fail open - allow picks if we can't verify
+    }
+
+    const data = (await response.json()) as any;
+    const events: any[] = data.events || [];
+
+    for (const event of events) {
+      const competition = event.competitions?.[0];
+      if (!competition) continue;
+
+      // Only tournament games
+      if (competition.type?.abbreviation !== 'TRNMNT') continue;
+
+      const statusName: string = competition.status?.type?.name || '';
+      const status = parseStatus(statusName);
+
+      // Check if this game is for the requested round
+      const notesHeadline: string = competition.notes?.[0]?.headline || '';
+      if (!notesHeadline) continue;
+
+      const { round: gameRound } = parseRound(notesHeadline);
+
+      // If this game is in our round and has started, return true
+      if (gameRound === round && (status === 'in_progress' || status === 'final')) {
+        console.log(`[ncaaService] Round ${round} has started - game ${event.id} is ${status}`);
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('[ncaaService] Error checking if round started:', error);
+    return false; // Fail open
+  }
+}
+
+/**
  * Fetch today's NCAA tournament games from ESPN.
  * Returns all statuses (final, in_progress, scheduled) — caller decides what to process.
  * Never throws — returns [] on any error so the scheduler cannot crash.
  */
 export async function fetchTodaysGames(): Promise<TournamentGame[]> {
   try {
-    const response = await fetch(getTodayUrl());
+    const url = await getTodayUrl();
+    const response = await fetch(url);
 
     if (!response.ok) {
       console.error(`[ncaaService] ESPN API returned HTTP ${response.status}`);

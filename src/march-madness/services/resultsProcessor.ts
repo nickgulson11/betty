@@ -515,6 +515,13 @@ export async function eliminateTeam(
  * no eliminations exist yet for that round.
  */
 async function runNoPickSweep(poolId: string, round: TournamentRound): Promise<string[]> {
+  // Lock the round immediately when games start
+  const currentPool = await poolModel.getCurrentPool();
+  if (currentPool && !currentPool.current_round_locked) {
+    await poolModel.updatePool(poolId, { current_round_locked: true });
+    console.log(`[resultsProcessor] Round ${round} locked - games have started`);
+  }
+
   const noPickers = await getActiveParticipantsWithNoPick(poolId, round);
   if (noPickers.length === 0) {
     console.log(`[resultsProcessor] No-pick sweep for ${round}: no participants to eliminate`);
@@ -709,10 +716,10 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
       await sendMainChannelMessage(`🏆 The tournament is over! Thanks for playing everyone. Betty out. 🎉`);
       console.log(`[resultsProcessor] Tournament complete — pool marked completed`);
     } else {
-      // Advance to next round
-      await poolModel.updatePool(currentPool.id, { current_round: nextRound });
+      // Advance to next round and unlock picks
+      await poolModel.updatePool(currentPool.id, { current_round: nextRound, current_round_locked: false });
       await sendMainChannelMessage(`🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`);
-      console.log(`[resultsProcessor] Advanced pool to ${nextRound}`);
+      console.log(`[resultsProcessor] Advanced pool to ${nextRound} and unlocked picks`);
     }
   }
 
@@ -766,9 +773,9 @@ export async function simulateRoundEnd(): Promise<{ round: string; nextRound: st
     console.log(`[resultsProcessor] simulateRoundEnd: tournament complete — pool marked completed`);
     return { round, nextRound: null };
   } else {
-    await poolModel.updatePool(currentPool.id, { current_round: nextRound });
+    await poolModel.updatePool(currentPool.id, { current_round: nextRound, current_round_locked: false });
     await sendMainChannelMessage(`🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`);
-    console.log(`[resultsProcessor] simulateRoundEnd: pool advanced to ${nextRound}`);
+    console.log(`[resultsProcessor] simulateRoundEnd: pool advanced to ${nextRound} and unlocked picks`);
     return { round, nextRound };
   }
 }
