@@ -198,11 +198,11 @@ Generate ONLY the DM message, no other text.`;
 async function generateMidRoundChannelMessage(
   teamName: string,
   round: string,
-  eliminatedUsernames: string[]
+  eliminatedUserIds: string[]
 ): Promise<string> {
   const participantsList =
-    eliminatedUsernames.length > 0
-      ? eliminatedUsernames.map((u) => `@${u}`).join(', ')
+    eliminatedUserIds.length > 0
+      ? eliminatedUserIds.map((id) => `<@${id}>`).join(', ')
       : null;
 
   const prompt = `You are Betty, a sassy, confident, no-filter March Madness pool bot for Slack.
@@ -213,12 +213,12 @@ Round: ${round}
 Eliminated participants: ${participantsList || 'none'}
 
 Your personality:
-- Sassy and fun, roast the eliminated participants by name
+- Sassy and fun, roast the eliminated participants
 - If no participants were eliminated, still announce the team loss dramatically
 - Uses slang: "youngblood", "honey", "chief", "fam", "playa", "guurl"
 - Basketball slang: "cooked", "bounced", "packed up", "L szn"
 - Keep it punchy — 3-5 sentences max
-- Use Slack @mention format for usernames
+- The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
 
 Generate ONLY the channel message, no other text.`;
 
@@ -244,16 +244,17 @@ Generate ONLY the channel message, no other text.`;
  */
 async function generateNoPickChannelMessage(
   round: string,
-  eliminatedUsernames: string[]
+  eliminatedUserIds: string[]
 ): Promise<string> {
-  const participantsList = eliminatedUsernames.map((u) => `@${u}`).join(', ');
+  const participantsList = eliminatedUserIds.map((id) => `<@${id}>`).join(', ');
 
   const prompt = `You are Betty, a sassy March Madness pool bot for Slack.
 The ${round} has started and some participants forgot to submit picks. They are now eliminated.
 
 Eliminated for no pick: ${participantsList}
 
-Roast them publicly for forgetting. Keep it fun, 2-4 sentences. Use Slack @mention format.
+Roast them publicly for forgetting. Keep it fun, 2-4 sentences.
+The participant mentions are already formatted as <@USER_ID> - use them as-is in your message.
 
 Generate ONLY the message.`;
 
@@ -284,8 +285,10 @@ async function generateEndOfRoundMessage(
   const prompt = `You are Betty, a sassy March Madness pool bot for Slack.
 The ${round} is complete. Post a round summary.
 
-Eliminated this round: ${eliminatedCount}
-Still alive: ${survivorCount}
+Participants eliminated this round: ${eliminatedCount}
+Participants still alive: ${survivorCount}
+
+Important: Refer to players as "participants" NOT "teams". The survivor count is accurate - use that exact number.
 
 Keep it concise and dramatic. 2-4 sentences. Betty style.
 
@@ -304,7 +307,53 @@ Generate ONLY the message.`;
     console.error('[resultsProcessor] Claude end-of-round message failed:', error);
   }
 
-  return `📊 ${round} is a wrap! ${eliminatedCount} participant(s) eliminated, ${survivorCount} still standing. Who's next? 👀`;
+  return `📊 ${round} is a wrap! ${eliminatedCount} participant(s) eliminated, ${survivorCount} participant(s) still standing. Who's next? 👀`;
+}
+
+/**
+ * Generate tournament winner announcement message.
+ */
+async function generateWinnerMessage(
+  winners: Array<{ slack_user_id: string; slack_username: string | null; seed_sum: number }>,
+  previousRound?: string
+): Promise<string> {
+  const winnerMentions = winners.map(w => `<@${w.slack_user_id}>`).join(', ');
+  const winnerNames = winners.map(w => w.slack_username || w.slack_user_id).join(', ');
+  const isTiebreaker = winners.length === 1 && winners[0].seed_sum > 0;
+  const seedSumInfo = winners.length === 1 ? `Seed Sum: ${winners[0].seed_sum}` : '';
+  const previousRoundInfo = previousRound ? ` (all participants were eliminated in the ${previousRound}, so we went to tiebreaker)` : '';
+
+  const prompt = `You are Betty, a sassy March Madness pool bot for Slack.
+The tournament is OVER and we have ${winners.length === 1 ? 'a WINNER' : 'winners (tied)'}!
+
+Winner(s): ${winnerNames}
+${seedSumInfo}
+${previousRoundInfo}
+
+Your personality:
+- HUGE energy — this is the BIG moment
+- Congratulate the winner(s) dramatically
+- ${isTiebreaker ? 'Mention they won on the tiebreaker (highest seed sum)' : ''}
+- The winner mentions are already formatted as <@USER_ID> - use them as-is: ${winnerMentions}
+- Keep it to 3-5 sentences
+- End with a Betty sign-off
+
+Generate ONLY the winner announcement message.`;
+
+  try {
+    const client = getAnthropicClient();
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 250,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const content = message.content[0];
+    if (content.type === 'text') return content.text.trim();
+  } catch (error) {
+    console.error('[resultsProcessor] Claude winner message generation failed:', error);
+  }
+
+  return `🏆 WE HAVE A WINNER! ${winnerMentions} just won the March Madness pool! Congrats, champ. Betty out. 🎉`;
 }
 
 // ============================================================================
@@ -490,11 +539,11 @@ export async function eliminateTeam(
   }
 
   // Send mid-round channel announcement only if someone was actually eliminated
-  if (eliminatedUsernames.length > 0) {
+  if (eliminatedUserIds.length > 0) {
     const channelMsg = await generateMidRoundChannelMessage(
       team.team_name,
       round,
-      eliminatedUsernames
+      eliminatedUserIds
     );
     await sendMainChannelMessage(channelMsg);
   }
@@ -507,6 +556,161 @@ export async function eliminateTeam(
     alreadyEliminated: false,
     teamNotFound: false,
   };
+}
+
+/**
+ * Calculate and update seed_sum for participants whose picks WON in this round.
+ * Called at END of round when advancing to next round — ONLY counts winning picks.
+ * This is the tiebreaker: higher seed sum = picked higher seeds = harder path.
+ */
+async function updateSeedSumsForWinningPicks(poolId: string, round: TournamentRound): Promise<void> {
+  console.log(`[resultsProcessor] Updating seed_sum for WINNING picks in ${round}...`);
+
+  // Get all WINNING picks for this round (result = 'won')
+  const picksResult = await dbPool.query(
+    `SELECT pk.participant_id, pk.team_name, p.seed_sum
+     FROM picks pk
+     JOIN participants p ON p.id = pk.participant_id
+     WHERE pk.pool_id = $1 AND pk.round = $2 AND pk.result = 'won'`,
+    [poolId, round]
+  );
+
+  if (picksResult.rows.length === 0) {
+    console.log(`[resultsProcessor] No winning picks found for ${round} — skipping seed_sum update`);
+    return;
+  }
+
+  for (const row of picksResult.rows) {
+    const { participant_id, team_name, seed_sum } = row;
+
+    // Look up the team's seed
+    const teamResult = await dbPool.query(
+      `SELECT seed FROM tournament_teams
+       WHERE pool_id = $1 AND LOWER(team_name) = LOWER($2)
+       LIMIT 1`,
+      [poolId, team_name]
+    );
+
+    if (teamResult.rows.length === 0 || teamResult.rows[0].seed == null) {
+      console.warn(`[resultsProcessor] No seed found for team "${team_name}" — skipping seed_sum update for this pick`);
+      continue;
+    }
+
+    const teamSeed = parseInt(teamResult.rows[0].seed, 10);
+    const newSeedSum = (seed_sum || 0) + teamSeed;
+
+    // Update participant's seed_sum
+    await participantModel.updateParticipant(participant_id, { seed_sum: newSeedSum });
+    console.log(`[resultsProcessor] Updated participant ${participant_id}: seed_sum ${seed_sum} + ${teamSeed} = ${newSeedSum} (won with ${team_name})`);
+  }
+
+  console.log(`[resultsProcessor] seed_sum updated for ${picksResult.rows.length} winning participant(s) in ${round}`);
+}
+
+/**
+ * Determine the winner(s) from a list of participants using seed_sum tiebreaker.
+ * Returns the participant(s) with the highest seed_sum.
+ * If multiple participants have the same highest seed_sum, all are returned (tie).
+ */
+function determineWinner(
+  participants: Array<{ id: string; slack_user_id: string; slack_username: string | null; seed_sum: number }>
+): Array<{ slack_user_id: string; slack_username: string | null; seed_sum: number }> {
+  if (participants.length === 0) {
+    return [];
+  }
+
+  if (participants.length === 1) {
+    return participants.map(p => ({
+      slack_user_id: p.slack_user_id,
+      slack_username: p.slack_username,
+      seed_sum: p.seed_sum || 0,
+    }));
+  }
+
+  // Find highest seed_sum
+  const maxSeedSum = Math.max(...participants.map(p => p.seed_sum || 0));
+
+  // Return all participants with that seed_sum (handles ties)
+  return participants
+    .filter(p => (p.seed_sum || 0) === maxSeedSum)
+    .map(p => ({
+      slack_user_id: p.slack_user_id,
+      slack_username: p.slack_username,
+      seed_sum: p.seed_sum || 0,
+    }));
+}
+
+/**
+ * Check if tournament should end and declare winner(s).
+ * Tournament ends when:
+ * 1. 0 or 1 participants remain active after any round, OR
+ * 2. Championship completes with multiple participants
+ *
+ * Winner determination:
+ * - 1 active participant = they win
+ * - Multiple active participants = highest seed_sum wins (can tie)
+ * - 0 active participants = look at last round's eliminated, highest seed_sum wins
+ *
+ * Returns true if tournament ended, false otherwise.
+ */
+async function checkForTournamentEnd(
+  poolId: string,
+  currentRound: TournamentRound,
+  allParticipants: Participant[]
+): Promise<boolean> {
+  const activeSurvivors = allParticipants.filter(p => p.status === 'active');
+  const isChampionshipComplete = currentRound === 'Championship';
+
+  // Tournament ends if:
+  // - 0 or 1 survivors after any round, OR
+  // - Championship complete with multiple survivors (tiebreaker by seed_sum)
+  const shouldEnd = activeSurvivors.length <= 1 || (isChampionshipComplete && activeSurvivors.length > 1);
+
+  if (!shouldEnd) {
+    return false;
+  }
+
+  console.log(`[resultsProcessor] Tournament ending condition met: ${activeSurvivors.length} survivor(s) after ${currentRound}`);
+
+  let winners: Array<{ slack_user_id: string; slack_username: string | null; seed_sum: number }> = [];
+  let previousRound: string | undefined;
+
+  if (activeSurvivors.length === 1) {
+    // Single survivor = automatic winner
+    const survivor = activeSurvivors[0];
+    winners = [{
+      slack_user_id: survivor.slack_user_id,
+      slack_username: survivor.slack_username,
+      seed_sum: survivor.seed_sum || 0,
+    }];
+    console.log(`[resultsProcessor] Single survivor: ${survivor.slack_username} (seed_sum: ${survivor.seed_sum})`);
+  } else if (activeSurvivors.length > 1) {
+    // Multiple survivors = tiebreaker by seed_sum
+    winners = determineWinner(activeSurvivors);
+    console.log(`[resultsProcessor] Multiple survivors, tiebreaker by seed_sum: ${winners.map(w => w.slack_username).join(', ')} (seed_sum: ${winners[0].seed_sum})`);
+  } else {
+    // 0 survivors = look at previous round's eliminated, tiebreaker by seed_sum
+    const lastRoundEliminated = allParticipants.filter(p => p.eliminated_round === currentRound);
+    if (lastRoundEliminated.length > 0) {
+      winners = determineWinner(lastRoundEliminated);
+      previousRound = currentRound;
+      console.log(`[resultsProcessor] 0 survivors, winner from ${currentRound} eliminated: ${winners.map(w => w.slack_username).join(', ')} (seed_sum: ${winners[0].seed_sum})`);
+    } else {
+      console.error(`[resultsProcessor] 0 survivors and no one eliminated in ${currentRound} — cannot determine winner`);
+      await sendMainChannelMessage(`🤔 Uh... everyone's eliminated and I can't figure out who won. Someone check the database. Betty confused. 💀`);
+      return true;
+    }
+  }
+
+  // Send winner announcement
+  const winnerMsg = await generateWinnerMessage(winners, previousRound);
+  await sendMainChannelMessage(winnerMsg);
+
+  // Mark pool completed
+  await poolModel.updatePool(poolId, { status: 'completed' });
+  console.log(`[resultsProcessor] Tournament complete — pool marked completed`);
+
+  return true;
 }
 
 /**
@@ -547,8 +751,8 @@ async function runNoPickSweep(poolId: string, round: TournamentRound): Promise<s
   }
 
   // Channel announcement for no-pick sweep
-  if (eliminatedUsernames.length > 0) {
-    const channelMsg = await generateNoPickChannelMessage(round, eliminatedUsernames);
+  if (eliminatedUserIds.length > 0) {
+    const channelMsg = await generateNoPickChannelMessage(round, eliminatedUserIds);
     await sendMainChannelMessage(channelMsg);
   }
 
@@ -609,6 +813,12 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
   const currentPool = await poolModel.getCurrentPool();
   if (!currentPool) {
     console.warn('[resultsProcessor] processGames: no active pool found');
+    return result;
+  }
+
+  // Skip processing if tournament is already completed
+  if (currentPool.status === 'completed') {
+    console.log('[resultsProcessor] Tournament is completed — skipping game processing');
     return result;
   }
 
@@ -713,20 +923,29 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
 
     console.log(`[resultsProcessor] End-of-round summary sent for ${round}`);
 
-    // Advance pool to next round
-    const nextRound = NEXT_ROUND[round];
-    if (nextRound === undefined) {
-      console.warn(`[resultsProcessor] No next round mapping for ${round}`);
-    } else if (nextRound === null) {
-      // Championship is over — mark pool completed
-      await poolModel.updatePool(currentPool.id, { status: 'completed' });
-      await sendMainChannelMessage(`🏆 The tournament is over! Thanks for playing everyone. Betty out. 🎉`);
-      console.log(`[resultsProcessor] Tournament complete — pool marked completed`);
+    // Update seed_sum for all participants whose picks WON this round
+    await updateSeedSumsForWinningPicks(poolId, round);
+
+    // Check if tournament should end (0-1 survivors, or Championship complete with multiple)
+    const tournamentEnded = await checkForTournamentEnd(poolId, round, allParticipants);
+
+    if (tournamentEnded) {
+      // Tournament over — winner announced and pool marked completed by checkForTournamentEnd()
+      console.log(`[resultsProcessor] Tournament ended after ${round}`);
     } else {
-      // Advance to next round and unlock picks
-      await poolModel.updatePool(currentPool.id, { current_round: nextRound, current_round_locked: false });
-      await sendMainChannelMessage(`🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`);
-      console.log(`[resultsProcessor] Advanced pool to ${nextRound} and unlocked picks`);
+      // Tournament continues — advance to next round
+      const nextRound = NEXT_ROUND[round];
+      if (nextRound === undefined) {
+        console.warn(`[resultsProcessor] No next round mapping for ${round}`);
+      } else if (nextRound === null) {
+        // This shouldn't happen now that we check for tournament end
+        console.warn(`[resultsProcessor] Reached null next round without tournament ending — this is unexpected`);
+      } else {
+        // Advance to next round and unlock picks
+        await poolModel.updatePool(currentPool.id, { current_round: nextRound, current_round_locked: false });
+        await sendMainChannelMessage(`🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`);
+        console.log(`[resultsProcessor] Advanced pool to ${nextRound} and unlocked picks`);
+      }
     }
   }
 
@@ -754,6 +973,12 @@ export async function simulateRoundEnd(): Promise<{ round: string; nextRound: st
 
   const poolId = currentPool.id;
 
+  // Lock the round if not already locked
+  if (!currentPool.current_round_locked) {
+    await poolModel.updatePool(poolId, { current_round_locked: true });
+    console.log(`[resultsProcessor] simulateRoundEnd: locked ${round}`);
+  }
+
   // Eliminate any active participants who never submitted a pick for this round
   const swept = await runNoPickSweep(poolId, round);
   if (swept.length > 0) {
@@ -770,14 +995,28 @@ export async function simulateRoundEnd(): Promise<{ round: string; nextRound: st
   await sendMainChannelMessage(summaryMsg);
   console.log(`[resultsProcessor] simulateRoundEnd: summary sent for ${round}`);
 
+  // Update seed_sum for all participants whose picks WON this round
+  await updateSeedSumsForWinningPicks(poolId, round);
+
+  // Refresh participants to get latest seed_sum values
+  const allParticipantsRefreshed = await participantModel.getParticipantsByPool(poolId);
+
+  // Check if tournament should end (0-1 survivors, or Championship complete with multiple)
+  const tournamentEnded = await checkForTournamentEnd(poolId, round, allParticipantsRefreshed);
+
+  if (tournamentEnded) {
+    console.log(`[resultsProcessor] simulateRoundEnd: tournament ended after ${round}`);
+    return { round, nextRound: null };
+  }
+
+  // Tournament continues — advance to next round
   const nextRound = NEXT_ROUND[round];
   if (nextRound === undefined) {
     console.warn(`[resultsProcessor] No next round mapping for ${round}`);
     return { round, nextRound: null };
   } else if (nextRound === null) {
-    await poolModel.updatePool(currentPool.id, { status: 'completed' });
-    await sendMainChannelMessage(`🏆 The tournament is over! Thanks for playing everyone. Betty out. 🎉`);
-    console.log(`[resultsProcessor] simulateRoundEnd: tournament complete — pool marked completed`);
+    // This shouldn't happen now that we check for tournament end
+    console.warn(`[resultsProcessor] simulateRoundEnd: reached null next round without tournament ending`);
     return { round, nextRound: null };
   } else {
     await poolModel.updatePool(currentPool.id, { current_round: nextRound, current_round_locked: false });

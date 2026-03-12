@@ -32,6 +32,15 @@ export async function submitPick(
       };
     }
 
+    // Check if tournament is completed
+    if (pool.status === 'completed') {
+      return {
+        success: false,
+        message: 'The tournament is over! Thanks for playing. Check the channel for the final results.',
+        error: 'TOURNAMENT_COMPLETED',
+      };
+    }
+
     // Check if pool is accepting picks
     if (pool.status !== 'active') {
       return {

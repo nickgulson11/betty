@@ -45,6 +45,15 @@ export async function startMarchMadnessBot(port: number): Promise<void> {
 
       console.log(`📝 Pick submission from ${userId}: "${text}"`);
 
+      // Check if tournament is completed
+      const pool = await poolModel.getCurrentPool();
+      if (pool && pool.status === 'completed') {
+        await say(
+          `🏆 The tournament is over! Thanks for playing. Check the channel for the final results. Betty out. 🎉`
+        );
+        return;
+      }
+
       // Handle special commands
       const lowerText = text.toLowerCase();
 

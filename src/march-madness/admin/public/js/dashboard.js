@@ -173,6 +173,7 @@ function renderParticipants(filter = 'all') {
       <td>${p.slack_username || '-'}</td>
       <td><span class="badge badge-${p.status}">${p.status}</span></td>
       <td><span class="badge badge-${p.paid ? 'paid' : 'unpaid'}">${p.paid ? 'Yes' : 'No'}</span></td>
+      <td><strong>${p.seed_sum || 0}</strong></td>
       <td>${p.eliminated_round || '-'}</td>
       <td>${p.eliminated_team || '-'}</td>
       <td>
@@ -199,6 +200,7 @@ async function viewParticipantDetails(id) {
     alert(`Participant: ${participant.slack_username || participant.slack_user_id}
 Status: ${participant.status}
 Paid: ${participant.paid ? 'Yes' : 'No'}
+Seed Sum (Tiebreaker): ${participant.seed_sum || 0}
 Teams Used: ${teamsUsed.join(', ') || 'None'}
 Total Picks: ${picks.length}`);
   } catch (error) {
