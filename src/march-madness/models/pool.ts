@@ -2,12 +2,13 @@ import { pool } from '../../shared/models/database';
 import { Pool, CreatePoolInput, UpdatePoolInput } from '../types/pool';
 
 /**
- * Get the current active pool (assumes single pool for now)
+ * Get the current pool (assumes single pool for now)
+ * Returns the most recent pool regardless of status (setup, active, or completed)
  */
 export async function getCurrentPool(): Promise<Pool | null> {
   const result = await pool.query(
     `SELECT * FROM pools
-     WHERE status IN ('setup', 'active')
+     WHERE status IN ('setup', 'active', 'completed')
      ORDER BY created_at DESC
      LIMIT 1`
   );
