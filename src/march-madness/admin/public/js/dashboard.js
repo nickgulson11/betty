@@ -993,6 +993,44 @@ function updateMessagePreview() {
   document.getElementById('message-preview-content').textContent = message || 'Message preview will appear here...';
 }
 
+async function bettyifyMessage() {
+  const messageInput = document.getElementById('message-content');
+  const message = messageInput.value.trim();
+
+  if (!message) {
+    alert('Please enter a message to Bettyify');
+    return;
+  }
+
+  try {
+    // Show loading state
+    const originalPlaceholder = messageInput.placeholder;
+    messageInput.placeholder = '✨ Bettyifying your message...';
+    messageInput.disabled = true;
+
+    const result = await api.bettyifyMessage(message);
+
+    // Update textarea with Betty's version
+    messageInput.value = result.bettyified;
+    updateMessagePreview();
+
+    // Show success notification
+    console.log('✨ Bettyified!', { original: result.original, bettyified: result.bettyified });
+
+    // Reset state
+    messageInput.disabled = false;
+    messageInput.placeholder = originalPlaceholder;
+    messageInput.focus();
+  } catch (error) {
+    console.error('Error bettyifying message:', error);
+    alert('Failed to bettyify message: ' + error.message);
+
+    // Reset state on error
+    messageInput.disabled = false;
+    messageInput.placeholder = 'Enter Betty\'s message...';
+  }
+}
+
 async function sendBettyMessage() {
   const destination = document.getElementById('message-destination').value;
   const isManual = document.getElementById('manual-target-checkbox')?.checked;

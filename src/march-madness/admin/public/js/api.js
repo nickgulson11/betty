@@ -75,6 +75,7 @@ const api = {
   sendMessage: (destination, message, target = null) =>
     apiRequest('/betty/message', 'POST', { destination, message, target }),
   getTemplates: () => apiRequest('/betty/templates'),
+  bettyifyMessage: (message) => apiRequest('/betty/bettyify', 'POST', { message }),
 
   // Teams
   getTeams: () => apiRequest('/teams'),
