@@ -36,11 +36,12 @@ export async function getParticipantBySlackId(
 
 /**
  * Create a new participant
+ * Status defaults to 'pending' until they pay
  */
 export async function createParticipant(input: CreateParticipantInput): Promise<Participant> {
   const result = await pool.query(
     `INSERT INTO participants (pool_id, slack_user_id, slack_username, status, paid)
-     VALUES ($1, $2, $3, 'active', false)
+     VALUES ($1, $2, $3, 'pending', false)
      RETURNING *`,
     [input.pool_id, input.slack_user_id, input.slack_username || null]
   );

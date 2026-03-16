@@ -1,4 +1,4 @@
-export type ParticipantStatus = 'active' | 'eliminated' | 'withdrawn';
+export type ParticipantStatus = 'pending' | 'active' | 'eliminated' | 'withdrawn';
 
 export interface Participant {
   id: string;

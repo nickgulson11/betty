@@ -1,0 +1,68 @@
+Duke, 1, East
+Siena, 16, East
+Ohio State, 8, East
+TCU, 9, East
+St John's, 5, East
+Northern Iowa, 12, East
+Kansas, 4, East
+CA Baptist, 13, East
+Louisville, 6, East
+South Florida, 11, East
+Michigan St, 3, East
+North Dakota St, 14, East
+UCLA, 7, East
+UCF, 10, East
+UConn, 2, East
+Furman, 15, East
+Florida, 1, South
+PV, 16, South
+LEH, 16, South
+Clemson, 8, South
+Iowa, 9, South
+Vanderbilt, 5, South
+McNeese, 12, South
+Nebraska, 4, South
+Troy, 13, South
+North Carolina, 6, South
+VCU, 11, South
+Illinois, 3, South
+Penn, 14, South
+Saint Mary's, 7, South
+Texas A&M, 10, South
+Houston, 2, South
+Idaho, 15, South
+Arizona, 1, West
+Long Island, 16, West
+Villanova, 8, West
+Utah State, 9, West
+Wisconsin, 5, West
+High Point, 12, West
+Arkansas, 4, West
+Hawai'i, 13, West
+BYU, 6, West
+Texas, 11, West
+NC State, 11, West
+Gonzaga, 3, West
+Kennesaw St, 14, West
+Miami, 7, West
+Missouri, 10, West
+Purdue, 2, West
+Queens, 15, West
+Michigan, 1, Midwest
+UMBC, 16, Midwest
+Howard, 16, Midwest
+Georgia, 8, Midwest
+Saint Louis, 9, Midwest
+Texas Tech, 5, Midwest
+Akron, 12, Midwest
+Alabama, 4, Midwest
+Hofstra, 13, Midwest
+Tennessee, 6, Midwest
+Miami of Ohio, 11, Midwest
+SMU, 11, Midwest
+Virginia, 3, Midwest
+Wright St, 14, Midwest
+Kentucky, 7, Midwest
+Santa Clara, 10, Midwest
+Iowa State, 2, Midwest
+Tennessee St, 15, Midwest

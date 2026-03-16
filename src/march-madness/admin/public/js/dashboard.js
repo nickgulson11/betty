@@ -103,18 +103,23 @@ async function loadDashboard() {
     participants = await api.getParticipants();
     picks = await api.getPicks();
 
-    // Update stats
-    const activeCount = participants.filter((p) => p.status === 'active').length;
-    const eliminatedCount = participants.filter((p) => p.status === 'eliminated').length;
-    const picksSubmitted = picks.length;
-    const activeParticipantsCount = participants.filter((p) => p.status === 'active').length;
+    // Update stats - only count paid participants
+    const unpaidCount = participants.filter((p) => !p.paid).length;
+    const activeCount = participants.filter((p) => p.status === 'active' && p.paid).length;
+    const eliminatedCount = participants.filter((p) => p.status === 'eliminated' && p.paid).length;
 
-    document.getElementById('total-participants').textContent = participants.length;
+    // Picks submitted in current round only, for paid active participants
+    let picksSubmittedCount = 0;
+    if (currentPool.current_round) {
+      picksSubmittedCount = picks.filter((pick) => pick.round === currentPool.current_round).length;
+    }
+
+    document.getElementById('unpaid-participants').textContent = unpaidCount;
     document.getElementById('active-participants').textContent = activeCount;
     document.getElementById('eliminated-participants').textContent = eliminatedCount;
     document.getElementById('current-round').textContent = currentPool.current_round || 'Not Started';
     document.getElementById('pool-status').textContent = currentPool.status.charAt(0).toUpperCase() + currentPool.status.slice(1);
-    document.getElementById('picks-submitted').textContent = `${picksSubmitted}/${activeParticipantsCount}`;
+    document.getElementById('picks-submitted').textContent = `${picksSubmittedCount}/${activeCount}`;
 
     // Render recent participants
     renderRecentParticipants();

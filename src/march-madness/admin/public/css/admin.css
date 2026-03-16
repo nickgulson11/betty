@@ -425,6 +425,11 @@ tr:hover {
   font-weight: 500;
 }
 
+.badge-pending {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
 .badge-active {
   background-color: #D1FAE5;
   color: #065F46;
@@ -436,8 +441,8 @@ tr:hover {
 }
 
 .badge-withdrawn {
-  background-color: #FEF3C7;
-  color: #92400E;
+  background-color: #E0E7FF;
+  color: #3730A3;
 }
 
 .badge-paid {

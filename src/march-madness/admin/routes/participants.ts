@@ -143,10 +143,13 @@ router.post('/', async (req: Request, res: Response) => {
 
     const participant = await participantModel.createParticipant(participantWithUsername);
 
-    // If paid flag was provided and true, mark as paid immediately
+    // If paid flag was provided and true, mark as paid and activate immediately
     let isPaid = false;
     if (req.body.paid === true) {
-      await participantModel.updateParticipant(participant.id, { paid: true });
+      await participantModel.updateParticipant(participant.id, {
+        paid: true,
+        status: 'active'
+      });
       isPaid = true;
     }
 
@@ -212,11 +215,15 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
 /**
  * POST /api/participants/:id/paid
- * Mark participant as paid and send welcome DM
+ * Mark participant as paid, set status to active, and send welcome DM
  */
 router.post('/:id/paid', async (req: Request, res: Response) => {
   try {
-    const participant = await participantModel.updateParticipant(req.params.id, { paid: true });
+    // Update both paid status and change status from 'pending' to 'active'
+    const participant = await participantModel.updateParticipant(req.params.id, {
+      paid: true,
+      status: 'active'
+    });
 
     if (!participant) {
       res.status(404).json({ error: 'Participant not found' });

@@ -36,8 +36,8 @@
 
         <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-value" id="total-participants">0</div>
-            <div class="stat-label">Total Participants</div>
+            <div class="stat-value" id="unpaid-participants">0</div>
+            <div class="stat-label">Unpaid</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" id="active-participants">0</div>
@@ -98,6 +98,7 @@
             <label>Filter:</label>
             <select id="participant-filter" onchange="filterParticipants()">
               <option value="all">All</option>
+              <option value="pending">Pending Payment</option>
               <option value="active">Active</option>
               <option value="eliminated">Eliminated</option>
               <option value="withdrawn">Withdrawn</option>
