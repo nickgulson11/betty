@@ -5,6 +5,7 @@ import { processGames } from '../services/resultsProcessor';
 // Track last sync time for admin UI display
 let lastSyncTime: Date | null = null;
 let schedulerTask: ScheduledTask | null = null;
+let keepAliveInterval: NodeJS.Timeout | null = null;
 
 /**
  * Get the timestamp of the last successful sync (for admin UI).
@@ -50,7 +51,23 @@ export function startTournamentScheduler(): void {
     });
   });
 
-  console.log('[tournamentScheduler] Scheduler started');
+  // Keep-alive ping to prevent Railway from sleeping the app
+  // Ping our own health endpoint every 25 minutes to generate HTTP traffic
+  const port = process.env.PORT || '3000';
+  keepAliveInterval = setInterval(async () => {
+    try {
+      const response = await fetch(`http://localhost:${port}/health`);
+      if (response.ok) {
+        console.log('[tournamentScheduler] Keep-alive ping successful');
+      } else {
+        console.warn('[tournamentScheduler] Keep-alive ping returned non-OK status:', response.status);
+      }
+    } catch (err) {
+      console.error('[tournamentScheduler] Keep-alive ping failed:', err);
+    }
+  }, 25 * 60 * 1000); // Every 25 minutes
+
+  console.log('[tournamentScheduler] Scheduler started with keep-alive ping every 25 minutes');
 }
 
 /**
@@ -61,5 +78,11 @@ export function stopTournamentScheduler(): void {
     schedulerTask.stop();
     schedulerTask = null;
     console.log('[tournamentScheduler] Scheduler stopped');
+  }
+
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
+    console.log('[tournamentScheduler] Keep-alive ping stopped');
   }
 }
