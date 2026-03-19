@@ -21,6 +21,8 @@ const ESPN_BASE_URL =
  * Build today's ESPN URL with an explicit date — prevents the API from
  * returning historical tournament games when no games are scheduled today.
  * If pool has override_date set, uses that date instead of current date (for testing).
+ * Subtracts 8 hours from UTC to ensure late games (9pm+ CST) that finish after
+ * midnight are still caught on the same "tournament day".
  */
 async function getTodayUrl(): Promise<string> {
   let targetDate = new Date();
@@ -31,14 +33,20 @@ async function getTodayUrl(): Promise<string> {
     if (pool?.override_date) {
       targetDate = new Date(pool.override_date);
       console.log(`[ncaaService] Using override date: ${targetDate.toISOString().split('T')[0]}`);
+    } else {
+      // Subtract 8 hours (gives 2-hour buffer past midnight CST for late games)
+      targetDate = new Date(targetDate.getTime() - (8 * 60 * 60 * 1000));
     }
   } catch (error) {
     console.warn('[ncaaService] Could not fetch pool override date, using current date');
+    // Subtract 8 hours (gives 2-hour buffer past midnight CST for late games)
+    targetDate = new Date(targetDate.getTime() - (8 * 60 * 60 * 1000));
   }
 
-  const year = targetDate.getFullYear();
-  const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-  const day = String(targetDate.getDate()).padStart(2, '0');
+  // Use UTC methods to avoid any local timezone interpretation
+  const year = targetDate.getUTCFullYear();
+  const month = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(targetDate.getUTCDate()).padStart(2, '0');
   return `${ESPN_BASE_URL}&dates=${year}${month}${day}`;
 }
 
