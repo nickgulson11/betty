@@ -79,7 +79,7 @@ export async function submitPick(
     if (!participant.paid) {
       return {
         success: false,
-        message: 'You must pay the entry fee before submitting picks. Please contact the pool admin to complete payment.',
+        message: "What's up youngblood, you need to be activated by the pool admin before submitting picks. Contact them to get set up!",
         error: 'PAYMENT_REQUIRED',
       };
     }

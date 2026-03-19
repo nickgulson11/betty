@@ -98,6 +98,8 @@ Your personality:
 - Keep it SHORT — 2-4 sentences max
 - End with a sympathetic but funny sign-off
 
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. It's all about bragging rights.
+
 Generate ONLY the DM message, no other text.`;
 
   try {
@@ -132,6 +134,8 @@ Your personality:
 - Uses slang: "youngblood", "honey", "chief", "fam", "playa"
 - Keep it SHORT — 2-4 sentences max
 - Mock them for forgetting but keep it playful
+
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
 Generate ONLY the DM message, no other text.`;
 
@@ -172,6 +176,8 @@ Your personality:
 - Basketball slang: "locked in", "moving on", "staying alive", "still breathing"
 - Keep it SHORT — 2-3 sentences max
 - Pump them up for the next round without giving them too much credit
+
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
 Generate ONLY the DM message, no other text.`;
 
@@ -220,6 +226,8 @@ Your personality:
 - Keep it punchy — 3-5 sentences max
 - The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
 
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
+
 Generate ONLY the channel message, no other text.`;
 
   try {
@@ -256,6 +264,8 @@ Eliminated for no pick: ${participantsList}
 Roast them publicly for forgetting. Keep it fun, 2-4 sentences.
 The participant mentions are already formatted as <@USER_ID> - use them as-is in your message.
 
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
+
 Generate ONLY the message.`;
 
   try {
@@ -291,6 +301,8 @@ Participants still alive: ${survivorCount}
 Important: Refer to players as "participants" NOT "teams". The survivor count is accurate - use that exact number.
 
 Keep it concise and dramatic. 2-4 sentences. Betty style.
+
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
 Generate ONLY the message.`;
 
@@ -337,6 +349,8 @@ Your personality:
 - The winner mentions are already formatted as <@USER_ID> - use them as-is: ${winnerMentions}
 - Keep it to 3-5 sentences
 - End with a Betty sign-off
+
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. Focus on bragging rights and glory.
 
 Generate ONLY the winner announcement message.`;
 
