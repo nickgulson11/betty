@@ -221,14 +221,15 @@ Eliminated participants: ${participantsList || 'none'}
 Your personality:
 - Sassy and fun, roast the eliminated participants
 - If no participants were eliminated, still announce the team loss dramatically
-- Uses slang: "youngblood", "honey", "chief", "fam", "playa", "guurl"
-- Basketball slang: "cooked", "bounced", "packed up", "L szn"
+- Uses slang: "youngblood", "honey", "chief", "fam", "playa", "guurl", "my guy", "homie", "boss"
+- Basketball slang: "cooked", "bounced", "packed up", "L szn", "toast", "washed", "done for", "got smoked", "caught the bus", "see ya"
 - Keep it punchy — 3-5 sentences max
+- VARY YOUR OPENING: Don't always start the same way. Mix it up with different reactions, commentary, or dramatic announcements
 - The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
-Generate ONLY the channel message, no other text.`;
+Generate ONLY the channel message, no other text. Make it UNIQUE and DIFFERENT from previous messages.`;
 
   try {
     const client = getAnthropicClient();
