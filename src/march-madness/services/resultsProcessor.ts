@@ -860,7 +860,7 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
   }
 
   // Process completed games
-  const activeTeams = await teamModel.getActiveTeams(poolId);
+  const allTeams = await teamModel.getTeamsByPool(poolId);
 
   for (const game of games) {
     if (game.status !== 'final') continue;
@@ -871,13 +871,22 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
 
     result.gamesProcessed++;
 
-    // Fuzzy-match ESPN loser name to our DB canonical name and eliminate
-    const loserCanonical = await matchTeamName(game.loser, activeTeams);
+    // STEP 1: Match ESPN loser name against ALL teams (active + eliminated)
+    // This prevents fuzzy matcher from incorrectly matching "Tennessee" when looking for "Tennessee State"
+    const loserCanonical = await matchTeamName(game.loser, allTeams);
     if (!loserCanonical) {
       console.warn(`[resultsProcessor] Could not match ESPN loser "${game.loser}" to any DB team — skipping`);
       continue;
     }
 
+    // STEP 2: Check if losing team is already eliminated (idempotency check)
+    const loserTeam = allTeams.find(t => t.team_name.toLowerCase() === loserCanonical.toLowerCase());
+    if (loserTeam && loserTeam.status === 'eliminated') {
+      console.log(`[resultsProcessor] ⏭️  ${loserCanonical} already eliminated (${loserTeam.eliminated_round}) — skipping game ${game.id}`);
+      continue; // Game already processed, skip to next
+    }
+
+    // STEP 3: Team is active, proceed with elimination
     const elimination = await eliminateTeam(loserCanonical, game.round);
 
     if (!elimination.alreadyEliminated && !elimination.teamNotFound) {
@@ -887,10 +896,16 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
 
     // Fuzzy-match ESPN winner name and mark those picks as won
     if (game.winner) {
-      const winnerCanonical = await matchTeamName(game.winner, activeTeams);
+      const winnerCanonical = await matchTeamName(game.winner, allTeams);
       if (winnerCanonical) {
-        const wonCount = await celebrateWinner(poolId, winnerCanonical, game.round);
-        result.picksMarkedWon += wonCount;
+        // Only celebrate if winner is still active (sanity check)
+        const winnerTeam = allTeams.find(t => t.team_name.toLowerCase() === winnerCanonical.toLowerCase());
+        if (winnerTeam && winnerTeam.status === 'active') {
+          const wonCount = await celebrateWinner(poolId, winnerCanonical, game.round);
+          result.picksMarkedWon += wonCount;
+        } else {
+          console.log(`[resultsProcessor] Winner "${winnerCanonical}" is not active — skipping celebration`);
+        }
       } else {
         console.warn(`[resultsProcessor] Could not match ESPN winner "${game.winner}" to any DB team — skipping win celebration`);
       }
