@@ -155,7 +155,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Only send welcome DM if participant is paid
     if (isPaid) {
-      const welcomeSent = await sendWelcomeDM(input.slack_user_id, pool.name);
+      const welcomeSent = await sendWelcomeDM(input.slack_user_id, pool.name, pool.tournament_type);
 
       if (!welcomeSent) {
         console.warn(`Failed to send welcome DM to ${input.slack_user_id}`);
@@ -235,7 +235,7 @@ router.post('/:id/paid', async (req: Request, res: Response) => {
 
     if (pool) {
       // Send welcome DM now that they're paid
-      const welcomeSent = await sendWelcomeDM(participant.slack_user_id, pool.name);
+      const welcomeSent = await sendWelcomeDM(participant.slack_user_id, pool.name, pool.tournament_type);
 
       if (!welcomeSent) {
         console.warn(`Failed to send welcome DM to ${participant.slack_user_id}`);

@@ -132,12 +132,7 @@
           <div class="filter-group">
             <label>Round:</label>
             <select id="round-filter" onchange="filterPicks()">
-              <option value="Round of 64">Round of 64</option>
-              <option value="Round of 32">Round of 32</option>
-              <option value="Sweet Sixteen">Sweet Sixteen</option>
-              <option value="Elite Eight">Elite Eight</option>
-              <option value="Final Four">Final Four</option>
-              <option value="Championship">Championship</option>
+              <!-- Options populated dynamically based on tournament type -->
             </select>
           </div>
           <button class="btn btn-secondary" onclick="loadPicksSummary()">📊 View Summary</button>
@@ -298,6 +293,14 @@
           </div>
 
           <div class="form-group">
+            <label>Tournament Type</label>
+            <select id="pool-tournament-type">
+              <option value="march_madness">March Madness</option>
+              <option value="nba_playoffs">NBA Playoffs</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label>Entry Fee ($)</label>
             <input type="number" id="pool-entry-fee" step="0.01" min="0" placeholder="10.00">
           </div>
@@ -323,6 +326,11 @@
               <p style="margin-top: 5px; color: #666; font-size: 0.85em;">
                 All ESPN API calls will use this date. Uncheck the box above to return to using the current date.
               </p>
+            </div>
+
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #2196f3;">
+              <button class="btn btn-secondary" onclick="forceSyncESPN()" id="force-sync-btn-pool" style="width: 100%;">🔄 Force Sync Now</button>
+              <div style="font-size: 13px; color: #1565c0; margin-top: 8px; text-align: center;">Last sync: <span id="last-sync-time-pool">Never</span></div>
             </div>
           </div>
 
@@ -470,12 +478,7 @@
         <div class="form-group">
           <label>Eliminated in Round *</label>
           <select id="eliminate-team-round" required>
-            <option value="Round of 64">Round of 64</option>
-            <option value="Round of 32">Round of 32</option>
-            <option value="Sweet Sixteen">Sweet Sixteen</option>
-            <option value="Elite Eight">Elite Eight</option>
-            <option value="Final Four">Final Four</option>
-            <option value="Championship">Championship</option>
+            <!-- Options populated dynamically based on tournament type -->
           </select>
         </div>
         <button type="submit" class="btn btn-danger">Mark Eliminated</button>
@@ -521,12 +524,7 @@ Kansas, 1, Midwest</pre>
         <div class="form-group">
           <label>Round *</label>
           <select id="pick-round-select" required>
-            <option value="Round of 64">Round of 64</option>
-            <option value="Round of 32">Round of 32</option>
-            <option value="Sweet Sixteen">Sweet Sixteen</option>
-            <option value="Elite Eight">Elite Eight</option>
-            <option value="Final Four">Final Four</option>
-            <option value="Championship">Championship</option>
+            <!-- Options populated dynamically based on tournament type -->
           </select>
         </div>
         <div class="form-group">
@@ -558,12 +556,7 @@ Kansas, 1, Midwest</pre>
         <div class="form-group">
           <label>Round *</label>
           <select id="sim-game-round" required>
-            <option value="Round of 64">Round of 64</option>
-            <option value="Round of 32">Round of 32</option>
-            <option value="Sweet Sixteen">Sweet Sixteen</option>
-            <option value="Elite Eight">Elite Eight</option>
-            <option value="Final Four">Final Four</option>
-            <option value="Championship">Championship</option>
+            <!-- Options populated dynamically based on tournament type -->
           </select>
         </div>
         <button type="submit" class="btn" style="background: #6f42c1; color: white;">Run Simulation</button>

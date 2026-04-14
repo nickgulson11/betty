@@ -1,17 +1,26 @@
+export type TournamentType = 'march_madness' | 'nba_playoffs';
+
 export type PoolStatus = 'setup' | 'active' | 'completed';
 
 export type TournamentRound =
+  // March Madness
   | 'Round of 64'
   | 'Round of 32'
   | 'Sweet Sixteen'
   | 'Elite Eight'
   | 'Final Four'
-  | 'Championship';
+  | 'Championship'
+  // NBA Playoffs
+  | 'First Round'
+  | 'Conference Semifinals'
+  | 'Conference Finals'
+  | 'NBA Finals';
 
 export interface Pool {
   id: string;
   name: string;
   sport: string;
+  tournament_type: TournamentType;
   status: PoolStatus;
   current_round: TournamentRound | null;
   entry_fee: number | null;
@@ -27,6 +36,7 @@ export interface Pool {
 export interface CreatePoolInput {
   name: string;
   sport?: string;
+  tournament_type: TournamentType;
   entry_fee?: number;
   slack_channel_id: string;
   admin_slack_id: string;
@@ -35,6 +45,7 @@ export interface CreatePoolInput {
 export interface UpdatePoolInput {
   name?: string;
   status?: PoolStatus;
+  tournament_type?: TournamentType;
   current_round?: TournamentRound | null;
   entry_fee?: number;
   override_date?: Date | null;

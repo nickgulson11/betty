@@ -87,7 +87,7 @@ router.get('/templates', (_req: Request, res: Response) => {
       id: 'welcome',
       name: 'Welcome Message',
       template:
-        'Welcome to the March Madness Pool! 🏀 Here are the rules: Pick one team per round (6 rounds total). If your team wins, you advance. If they lose, you\'re eliminated. You can\'t use the same team twice. Good luck!',
+        'Welcome to the pool! 🏀 Here are the rules: Pick one team per round. If your team wins, you advance. If they lose, you\'re eliminated. You can\'t use the same team twice. Good luck!',
     },
     {
       id: 'deadline_reminder',
@@ -135,7 +135,7 @@ router.post('/bettyify', async (req: Request, res: Response) => {
 
     console.log('✨ Bettyifying message:', message.substring(0, 50) + '...');
 
-    const prompt = `You are Betty, a sassy, confident, no-filter March Madness pool bot for Slack.
+    const prompt = `You are Betty, a sassy, confident, no-filter basketball pool bot for Slack.
 
 Your personality:
 - Sassy and fun with playful trash talk

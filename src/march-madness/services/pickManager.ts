@@ -4,7 +4,8 @@ import * as poolModel from '../models/pool';
 import * as teamModel from '../models/tournamentTeam';
 import { sendPickConfirmation, sendPickUpdateConfirmation } from './slackMessaging';
 import { matchTeamName } from './teamMatcher';
-import { hasRoundStarted } from './ncaaService';
+import { hasRoundStarted as ncaaRoundStarted } from './ncaaService';
+import { hasRoundStarted as nbaPlayoffsRoundStarted } from './nbaPlayoffsService';
 
 export interface PickSubmissionResult {
   success: boolean;
@@ -106,7 +107,13 @@ export async function submitPick(
 
     // If not locked, verify with ESPN (on-demand check)
     // This prevents the first person after games start from slipping through
-    const roundStarted = await hasRoundStarted(currentRound);
+    let roundStarted = false;
+    if (pool.tournament_type === 'nba_playoffs') {
+      roundStarted = await nbaPlayoffsRoundStarted(pool.id, currentRound);
+    } else {
+      roundStarted = await ncaaRoundStarted(currentRound);
+    }
+
     if (roundStarted) {
       // Lock the round immediately
       await poolModel.updatePool(pool.id, { current_round_locked: true });

@@ -1,6 +1,7 @@
 import { schedule, ScheduledTask } from 'node-cron';
 import { fetchTodaysGames } from '../services/ncaaService';
-import { processGames } from '../services/resultsProcessor';
+import { processGames, processResults } from '../services/resultsProcessor';
+import { getCurrentPool } from '../models/pool';
 
 // Track last sync time for admin UI display
 let lastSyncTime: Date | null = null;
@@ -15,14 +16,30 @@ export function getLastSyncTime(): Date | null {
 }
 
 /**
- * Run a single poll cycle: fetch today's games and process results.
+ * Run a single poll cycle: fetch today's games/series and process results.
  * Called by the cron job and by the manual Force Sync endpoint.
+ * Routes to appropriate handler based on tournament type.
  */
 export async function runSyncCycle(): Promise<void> {
   console.log('[tournamentScheduler] Running ESPN sync cycle...');
   try {
-    const games = await fetchTodaysGames();
-    await processGames(games);
+    const pool = await getCurrentPool();
+    if (!pool) {
+      console.log('[tournamentScheduler] No active pool found');
+      return;
+    }
+
+    console.log(`[tournamentScheduler] Processing ${pool.tournament_type} tournament`);
+
+    if (pool.tournament_type === 'nba_playoffs') {
+      // NBA Playoffs: processResults handles fetching and processing series
+      await processResults(pool.id);
+    } else {
+      // March Madness: fetch games first, then process
+      const games = await fetchTodaysGames();
+      await processGames(games);
+    }
+
     lastSyncTime = new Date();
     console.log(`[tournamentScheduler] Sync complete at ${lastSyncTime.toISOString()}`);
   } catch (error) {

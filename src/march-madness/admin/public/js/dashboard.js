@@ -17,6 +17,14 @@ async function init() {
   await loadDashboard();
   await loadTemplates();
   setupEventListeners();
+
+  // Initialize round filters based on current pool's tournament type
+  if (currentPool) {
+    populateRoundSelect('round-filter', currentPool.tournament_type || 'march_madness', false);
+    if (currentPool.current_round) {
+      document.getElementById('round-filter').value = currentPool.current_round;
+    }
+  }
 }
 
 function setupEventListeners() {
@@ -82,6 +90,14 @@ function navigateTo(page) {
       loadParticipants();
       break;
     case 'picks':
+      // Update round filter based on current pool's tournament type
+      if (currentPool) {
+        populateRoundSelect('round-filter', currentPool.tournament_type || 'march_madness', false);
+        // Set to current round if available
+        if (currentPool.current_round) {
+          document.getElementById('round-filter').value = currentPool.current_round;
+        }
+      }
       loadPicks();
       break;
     case 'teams':
@@ -336,15 +352,13 @@ async function showAddPickModal() {
       teamSelect.appendChild(opt);
     });
 
-  // Default round to current pool round
-  if (currentPool && currentPool.current_round) {
-    document.getElementById('pick-round-select').value = currentPool.current_round;
-  }
-
-  document.getElementById('add-pick-form').reset();
-  // Re-apply defaults after reset
-  if (currentPool && currentPool.current_round) {
-    document.getElementById('pick-round-select').value = currentPool.current_round;
+  // Populate round options based on tournament type
+  if (currentPool) {
+    populateRoundSelect('pick-round-select', currentPool.tournament_type || 'march_madness', false);
+    // Default round to current pool round
+    if (currentPool.current_round) {
+      document.getElementById('pick-round-select').value = currentPool.current_round;
+    }
   }
 
   document.getElementById('add-pick-modal').classList.add('active');
@@ -513,10 +527,16 @@ function showEditTeamModal(id) {
 function showEliminateTeamModal(id, teamName) {
   document.getElementById('eliminate-team-id').value = id;
   document.getElementById('eliminate-team-name-display').textContent = teamName;
-  // Default to current round if set
-  if (currentPool && currentPool.current_round) {
-    document.getElementById('eliminate-team-round').value = currentPool.current_round;
+
+  // Populate round options based on tournament type
+  if (currentPool) {
+    populateRoundSelect('eliminate-team-round', currentPool.tournament_type || 'march_madness', false);
+    // Default to current round if set
+    if (currentPool.current_round) {
+      document.getElementById('eliminate-team-round').value = currentPool.current_round;
+    }
   }
+
   document.getElementById('eliminate-team-modal').classList.add('active');
 }
 
@@ -600,24 +620,44 @@ async function clearAllTeams() {
 }
 
 async function forceSyncESPN() {
-  const btn = document.getElementById('force-sync-btn');
-  const syncTimeEl = document.getElementById('last-sync-time');
+  const btnDashboard = document.getElementById('force-sync-btn');
+  const btnPool = document.getElementById('force-sync-btn-pool');
+  const syncTimeElDashboard = document.getElementById('last-sync-time');
+  const syncTimeElPool = document.getElementById('last-sync-time-pool');
 
-  btn.disabled = true;
-  btn.textContent = '⏳ Syncing...';
+  // Disable both buttons
+  if (btnDashboard) {
+    btnDashboard.disabled = true;
+    btnDashboard.textContent = '⏳ Syncing...';
+  }
+  if (btnPool) {
+    btnPool.disabled = true;
+    btnPool.textContent = '⏳ Syncing...';
+  }
 
   try {
     const result = await api.syncTeams();
     const now = new Date().toLocaleTimeString();
-    syncTimeEl.textContent = `Last synced at ${now}`;
+
+    // Update both sync time displays
+    if (syncTimeElDashboard) syncTimeElDashboard.textContent = `Last synced at ${now}`;
+    if (syncTimeElPool) syncTimeElPool.textContent = `${now}`;
+
     alert(`✅ ${result.message}`);
     await loadTeams();
   } catch (error) {
     console.error('Error during ESPN sync:', error);
     alert('Sync failed. Check Railway logs for details.');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '🔄 Force Sync Now';
+    // Re-enable both buttons
+    if (btnDashboard) {
+      btnDashboard.disabled = false;
+      btnDashboard.textContent = '🔄 Force Sync Now';
+    }
+    if (btnPool) {
+      btnPool.disabled = false;
+      btnPool.textContent = '🔄 Force Sync Now';
+    }
   }
 }
 
@@ -648,9 +688,15 @@ async function simulateRoundEndNow() {
 }
 
 function showSimulateGameModal() {
-  const round = currentPool?.current_round || 'Round of 64';
-  const roundSelect = document.getElementById('sim-game-round');
-  if (roundSelect) roundSelect.value = round;
+  // Populate round options based on tournament type
+  if (currentPool) {
+    populateRoundSelect('sim-game-round', currentPool.tournament_type || 'march_madness', false);
+    // Default to current round if set
+    if (currentPool.current_round) {
+      document.getElementById('sim-game-round').value = currentPool.current_round;
+    }
+  }
+
   document.getElementById('sim-game-winner').value = '';
   document.getElementById('sim-game-loser').value = '';
   document.getElementById('simulate-game-modal').classList.add('active');
@@ -743,9 +789,15 @@ async function loadPoolSettings() {
   }
 
   document.getElementById('pool-name').value = currentPool.name;
-  document.getElementById('pool-round').value = currentPool.current_round || '';
+  document.getElementById('pool-tournament-type').value = currentPool.tournament_type || 'march_madness';
   document.getElementById('pool-status-select').value = currentPool.status;
   document.getElementById('pool-entry-fee').value = currentPool.entry_fee || '';
+
+  // Update round options based on tournament type
+  updateRoundOptions(currentPool.tournament_type || 'march_madness');
+
+  // Now set the current round value after options are populated
+  document.getElementById('pool-round').value = currentPool.current_round || '';
 
   // Load override_date settings
   const overrideDateEnabled = document.getElementById('override-date-enabled');
@@ -809,6 +861,7 @@ async function updatePool() {
   // Read values directly from form inputs
   const name = document.getElementById('pool-name').value;
   const current_round = document.getElementById('pool-round').value || null;
+  const tournament_type = document.getElementById('pool-tournament-type').value;
   const status = document.getElementById('pool-status-select').value;
   const entry_fee = parseFloat(document.getElementById('pool-entry-fee').value) || null;
 
@@ -818,10 +871,10 @@ async function updatePool() {
     ? document.getElementById('override-date-picker').value || null
     : null;
 
-  console.log('Updating pool with:', { name, current_round, status, entry_fee, override_date }); // Debug log
+  console.log('Updating pool with:', { name, current_round, tournament_type, status, entry_fee, override_date }); // Debug log
 
   try {
-    const updated = await api.updatePool(currentPool.id, { name, current_round, status, entry_fee, override_date });
+    const updated = await api.updatePool(currentPool.id, { name, current_round, tournament_type, status, entry_fee, override_date });
     console.log('Pool updated:', updated); // Debug log
     currentPool = updated; // Update local cache with fresh data
     alert('Pool settings updated');
@@ -1128,6 +1181,73 @@ async function handleSendBettyMessage(e) {
   }
 }
 
+// Get rounds array for tournament type
+function getRoundsForTournamentType(tournamentType) {
+  if (tournamentType === 'nba_playoffs') {
+    return [
+      'First Round',
+      'Conference Semifinals',
+      'Conference Finals',
+      'NBA Finals'
+    ];
+  } else {
+    return [
+      'Round of 64',
+      'Round of 32',
+      'Sweet Sixteen',
+      'Elite Eight',
+      'Final Four',
+      'Championship'
+    ];
+  }
+}
+
+// Populate a select element with rounds for the given tournament type
+function populateRoundSelect(selectId, tournamentType, includeNotStarted = false) {
+  const roundSelect = document.getElementById(selectId);
+  if (!roundSelect) return;
+
+  const currentValue = roundSelect.value; // Save current selection
+  roundSelect.innerHTML = ''; // Clear
+
+  if (includeNotStarted) {
+    const notStartedOption = document.createElement('option');
+    notStartedOption.value = '';
+    notStartedOption.textContent = 'Not Started';
+    roundSelect.appendChild(notStartedOption);
+  }
+
+  const rounds = getRoundsForTournamentType(tournamentType);
+  rounds.forEach(round => {
+    const option = document.createElement('option');
+    option.value = round;
+    option.textContent = round;
+    roundSelect.appendChild(option);
+  });
+
+  // Restore previous selection if it still exists
+  if (currentValue && rounds.includes(currentValue)) {
+    roundSelect.value = currentValue;
+  } else if (includeNotStarted) {
+    roundSelect.value = '';
+  }
+}
+
+// Update round options based on tournament type
+function updateRoundOptions(tournamentType) {
+  populateRoundSelect('pool-round', tournamentType, true);
+}
+
+// Add event listener for tournament type changes
+function initTournamentTypeListener() {
+  const tournamentTypeSelect = document.getElementById('pool-tournament-type');
+  if (tournamentTypeSelect) {
+    tournamentTypeSelect.addEventListener('change', (e) => {
+      updateRoundOptions(e.target.value);
+    });
+  }
+}
+
 // Close modal when clicking outside
 window.onclick = function (event) {
   if (event.target.classList.contains('modal')) {
@@ -1136,4 +1256,7 @@ window.onclick = function (event) {
 };
 
 // Initialize on page load
-window.addEventListener('DOMContentLoaded', init);
+window.addEventListener('DOMContentLoaded', () => {
+  init();
+  initTournamentTypeListener();
+});

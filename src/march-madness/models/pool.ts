@@ -25,16 +25,24 @@ export async function getPoolById(id: string): Promise<Pool | null> {
 }
 
 /**
+ * Get pool by ID (alias for getPoolById)
+ */
+export async function getPool(id: string): Promise<Pool | null> {
+  return getPoolById(id);
+}
+
+/**
  * Create a new pool
  */
 export async function createPool(input: CreatePoolInput): Promise<Pool> {
   const result = await pool.query(
-    `INSERT INTO pools (name, sport, entry_fee, slack_channel_id, admin_slack_id, status)
-     VALUES ($1, $2, $3, $4, $5, 'setup')
+    `INSERT INTO pools (name, sport, tournament_type, entry_fee, slack_channel_id, admin_slack_id, status)
+     VALUES ($1, $2, $3, $4, $5, $6, 'setup')
      RETURNING *`,
     [
       input.name,
       input.sport || 'NCAA Basketball',
+      input.tournament_type || 'march_madness',
       input.entry_fee || null,
       input.slack_channel_id,
       input.admin_slack_id,
@@ -72,6 +80,10 @@ export async function updatePool(id: string, input: UpdatePoolInput): Promise<Po
   if (input.current_round !== undefined) {
     updates.push(`current_round = $${paramCount++}`);
     values.push(input.current_round);
+  }
+  if (input.tournament_type !== undefined) {
+    updates.push(`tournament_type = $${paramCount++}`);
+    values.push(input.tournament_type);
   }
   if (input.entry_fee !== undefined) {
     updates.push(`entry_fee = $${paramCount++}`);

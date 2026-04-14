@@ -108,21 +108,30 @@ export async function getUserInfo(userId: string): Promise<{
 /**
  * Send welcome DM to a new participant
  */
-export async function sendWelcomeDM(userId: string, poolName: string): Promise<boolean> {
+export async function sendWelcomeDM(
+  userId: string,
+  poolName: string,
+  tournamentType: 'march_madness' | 'nba_playoffs' = 'march_madness'
+): Promise<boolean> {
+  const roundCount = tournamentType === 'nba_playoffs' ? 4 : 6;
+  const exampleTeam1 = tournamentType === 'nba_playoffs' ? 'Lakers' : 'Duke';
+  const exampleTeam2 = tournamentType === 'nba_playoffs' ? 'Celtics' : 'North Carolina';
+  const exampleTeam3 = tournamentType === 'nba_playoffs' ? 'Nuggets' : 'Gonzaga';
+
   const message = `👋 Welcome to the **${poolName}**! 🏀
 
 Here's how it works:
-• Pick ONE team per round (6 rounds total)
+• Pick ONE team per round (${roundCount} rounds total)
 • If your team wins, you advance to the next round
 • If your team loses, you're eliminated
-• You CANNOT reuse teams (once you pick Duke, Duke is unavailable for all future rounds)
+• You CANNOT reuse teams (once you pick ${exampleTeam1}, ${exampleTeam1} is unavailable for all future rounds)
 • Picks are due before the first game of each round starts
 
 **How to submit your pick:**
 Just DM me the team name! For example:
-\`Duke\`
-\`North Carolina\`
-\`Gonzaga\`
+\`${exampleTeam1}\`
+\`${exampleTeam2}\`
+\`${exampleTeam3}\`
 
 I'll confirm your pick and let you know if there are any issues.
 

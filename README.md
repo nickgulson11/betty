@@ -1,15 +1,34 @@
-# Betty - NBA Betting Bot for Slack
+# Betty - Dual-Mode Slack Bot
 
-Betty is a conversational betting bot that integrates with Slack to enable friends to make casual bets on NBA games. Using Claude AI for natural language processing, Betty can detect, confirm, track, and automatically settle bets within your Slack workspace.
+Betty is a versatile Slack bot with two distinct modes:
+1. **Betting Mode** - Conversational betting bot for NBA/NFL games with automatic settlement
+2. **March Madness Mode** - Survivor-style tournament pool with automated pick management ✅ *Production-tested*
+
+Betty uses Claude AI for natural language processing and automatically handles all game tracking and result processing.
 
 ## Features
 
+### 🎲 Betting Mode (Legacy)
 - **Natural Language Processing**: Mention @betty with your bet in plain English
 - **Easy Bet Confirmation**: React with 👍 to accept or ❌ to decline bets
 - **Automatic Settlement**: Checks game results every 30 minutes and settles bets automatically
-- **Game Validation**: Verifies NBA games exist and haven't started yet
+- **Game Validation**: Verifies NBA/NFL games exist and haven't started yet
 - **Conversational Clarification**: Asks follow-up questions when bet details are unclear
 - **Thread-based Tracking**: All bet activity happens in organized Slack threads
+
+### 🏀 March Madness Mode (Production-Ready)
+- **Survivor-Style Pool**: One pick per round, team elimination when pick loses
+- **Slack DM Pick Submission**: Natural language team selection ("Duke", "Heels", "Zags")
+- **Claude Fuzzy Matching**: Understands nicknames and abbreviations
+- **Auto-Result Processing**: ESPN API integration with 30-min polling
+- **Smart Elimination**: Automated roast DMs + channel announcements (Claude-generated)
+- **Win Celebrations**: Personalized congrats messages for advancing picks
+- **Admin Web Console**: Password-protected dashboard for pool management
+- **Payment Tracking**: Mark participants as paid before they can submit picks
+- **Pick Deadline Enforcement**: Auto-locks when games start (on-demand ESPN verification)
+- **Round Advancement**: Automatic progression based on elimination counts
+- **Channel Sync**: Bulk participant registration from Slack channel members
+- **Date Override**: Testing tool for historical tournament simulation
 
 ## Tech Stack
 
@@ -135,29 +154,77 @@ npm start
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed production deployment instructions.
 
+## Mode Switching
+
+Betty uses a feature flag system to switch between modes via the `BETTY_MODE` environment variable:
+
+```bash
+# Betting Mode (legacy)
+BETTY_MODE=betting
+
+# March Madness Mode (production-ready)
+BETTY_MODE=march_madness
+```
+
+Both modes share the same database and can coexist. Simply change the environment variable and restart to switch modes.
+
 ## Project Structure
 
 ```
 betty/
 ├── src/
-│   ├── bot/
-│   │   └── slackBot.ts          # Slack event handlers
-│   ├── models/
-│   │   └── database.ts          # PostgreSQL connection
-│   ├── scheduler/
-│   │   └── settlementScheduler.ts  # Cron job for bet settlement
-│   ├── services/
-│   │   ├── betManager.ts        # Bet creation and management
-│   │   ├── claudeService.ts     # Claude API integration
-│   │   ├── nbaService.ts        # NBA game data
-│   │   └── resultsService.ts    # Game result verification
-│   ├── types/
-│   │   └── bet.ts               # TypeScript type definitions
-│   └── index.ts                 # Application entry point
+│   ├── config/
+│   │   └── mode.ts                    # Feature flag system
+│   ├── shared/                        # Shared across both modes
+│   │   ├── models/
+│   │   │   └── database.ts            # PostgreSQL connection
+│   │   └── services/
+│   │       ├── claudeService.ts       # Claude API client
+│   │       └── personalityService.ts  # Betty's personality
+│   ├── betting/                       # Betting mode (legacy)
+│   │   ├── bot/
+│   │   │   └── slackBot.ts
+│   │   ├── services/
+│   │   │   ├── betManager.ts
+│   │   │   ├── nbaService.ts
+│   │   │   ├── nflService.ts
+│   │   │   └── resultsService.ts
+│   │   └── scheduler/
+│   │       └── settlementScheduler.ts
+│   ├── march-madness/                 # March Madness mode
+│   │   ├── bot/
+│   │   │   └── slackBot.ts            # DM pick submission handlers
+│   │   ├── services/
+│   │   │   ├── ncaaService.ts         # ESPN NCAA API
+│   │   │   ├── pickManager.ts         # Pick validation & submission
+│   │   │   ├── resultsProcessor.ts    # Auto-elimination pipeline
+│   │   │   ├── teamMatcher.ts         # Claude fuzzy matching
+│   │   │   ├── slackMessaging.ts      # DM & channel messaging
+│   │   │   └── channelSync.ts         # Bulk participant registration
+│   │   ├── models/
+│   │   │   ├── pool.ts
+│   │   │   ├── participant.ts
+│   │   │   ├── pick.ts
+│   │   │   └── tournamentTeam.ts
+│   │   ├── admin/
+│   │   │   ├── routes/                # API endpoints
+│   │   │   ├── middleware/            # Auth
+│   │   │   ├── public/                # Web console UI
+│   │   │   └── server.ts
+│   │   ├── scheduler/
+│   │   │   └── tournamentScheduler.ts # 30-min ESPN polling
+│   │   └── types/
+│   └── index.ts                       # Mode router
 ├── database/
-│   ├── schema.sql               # Database schema
-│   └── setup.sh                 # Database setup script
-├── .env.example                 # Environment variable template
+│   ├── schema.sql                     # Betting mode schema
+│   ├── march-madness-schema.sql       # March Madness schema
+│   └── migrations/
+├── docs/                              # Comprehensive documentation
+│   ├── PROGRESS.md                    # Project completion tracker
+│   ├── march_madness_design.md        # Design document
+│   ├── implementation_architecture.md # Technical architecture
+│   └── plans/                         # Phase design docs
+├── .env.example
 ├── package.json
 └── tsconfig.json
 ```
@@ -231,6 +298,7 @@ Recommended hosting providers:
 
 ## Environment Variables
 
+### Core (Both Modes)
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `SLACK_BOT_TOKEN` | Bot User OAuth Token from Slack | Yes |
@@ -239,7 +307,60 @@ Recommended hosting providers:
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `NODE_ENV` | Environment (`development` or `production`) | Yes |
 | `PORT` | Server port (default: 3000) | No |
+| `BETTY_MODE` | Mode selector: `betting` or `march_madness` | Yes |
+
+### Betting Mode Only
+| Variable | Description | Required |
+|----------|-------------|----------|
 | `TESTING_MODE` | Set to `true` to allow self-acceptance of bets | No |
+
+### March Madness Mode Only
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `ADMIN_PASSWORD` | Password for admin web console | Yes |
+| `ADMIN_PORT` | Admin console port (default: 3001) | No |
+| `SLACK_MAIN_CHANNEL_ID` | Main channel for announcements | Yes |
+| `PERSONALITY_MODE` | Enable Claude personality for messages (default: true) | No |
+
+## March Madness Admin Console
+
+When running in March Madness mode, Betty starts two servers:
+- **Port 3000**: Slack bot for participant interactions
+- **Port 3001**: Admin web console (password-protected)
+
+### Accessing the Console
+1. Navigate to `http://localhost:3001/admin` (or your production URL)
+2. Enter the admin password (set via `ADMIN_PASSWORD`)
+3. Manage your tournament pool
+
+### Admin Features
+- **Dashboard**: View pool statistics and participant status
+- **Participants**: Add/remove participants, mark as paid, sync channel members
+- **Teams**: Bulk import tournament teams, manage eliminations
+- **Picks**: View all picks by round, add picks manually
+- **Pool Settings**: Configure rounds, status, entry fee, date override for testing
+- **Betty Chat**: Send custom messages to channel or individual participants
+- **Force Sync**: Manually trigger ESPN result check
+- **Simulate**: Test elimination/round-end logic with mock data
+
+### Quick Start (March Madness Mode)
+1. Set `BETTY_MODE=march_madness` and restart
+2. Access admin console and create a pool
+3. Click "Sync Channel Members" to bulk add participants
+4. Mark participants as paid (triggers welcome DM)
+5. Bulk import tournament teams (64 teams via CSV paste)
+6. Participants DM Betty their picks (e.g., "Duke", "Heels")
+7. Results process automatically every 30 minutes via ESPN API
+8. Betty sends roast DMs to eliminated participants and congrats to winners
+9. Round advances automatically when all expected eliminations complete
+
+## Documentation
+
+Comprehensive documentation available in `docs/`:
+- **PROGRESS.md** - Project completion tracker with all implementation details
+- **march_madness_design.md** - Original design document (fully implemented)
+- **implementation_architecture.md** - Technical architecture and system design
+- **plans/** - Detailed phase designs and testing documentation
 
 ## Troubleshooting
 

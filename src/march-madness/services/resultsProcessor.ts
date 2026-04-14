@@ -8,6 +8,9 @@ import * as participantModel from '../models/participant';
 import { matchTeamName } from './teamMatcher';
 import { sendDM, sendMainChannelMessage } from './slackMessaging';
 import { Participant } from '../types/participant';
+import { getCompletedSeries } from './nbaPlayoffsService';
+import { SeriesResult } from '../types/nbaPlayoffs';
+import { NBA_PLAYOFFS_ELIMINATION_COUNTS, NBA_PLAYOFFS_NEXT_ROUND } from '../constants/nbaPlayoffs';
 
 // ============================================================================
 // Tournament round constants
@@ -15,7 +18,8 @@ import { Participant } from '../types/participant';
 
 // Number of teams eliminated when a round is fully complete.
 // When DB elimination count for a round reaches this number, the round is done.
-const ROUND_ELIMINATION_COUNTS: Record<TournamentRound, number> = {
+// March Madness rounds only - NBA Playoffs uses NBA_PLAYOFFS_ELIMINATION_COUNTS
+const ROUND_ELIMINATION_COUNTS: Partial<Record<TournamentRound, number>> = {
   'Round of 64':   32,
   'Round of 32':   16,
   'Sweet Sixteen':  8,
@@ -82,9 +86,11 @@ function getAnthropicClient(): Anthropic {
 async function generateEliminationDM(
   username: string,
   teamName: string,
-  round: string
+  round: string,
+  tournamentType: 'march_madness' | 'nba_playoffs' = 'march_madness'
 ): Promise<string> {
-  const prompt = `You are Betty, a sassy, confident, no-filter March Madness pool bot for Slack.
+  const tournamentName = tournamentType === 'nba_playoffs' ? 'NBA Playoffs' : 'March Madness';
+  const prompt = `You are Betty, a sassy, confident, no-filter ${tournamentName} pool bot for Slack.
 Send a DM to a participant whose team just got eliminated.
 
 Participant username: ${username}
@@ -122,8 +128,13 @@ Generate ONLY the DM message, no other text.`;
 /**
  * Generate a roast DM for a participant eliminated for not picking.
  */
-async function generateNoPickDM(username: string, round: string): Promise<string> {
-  const prompt = `You are Betty, a sassy, confident, no-filter March Madness pool bot for Slack.
+async function generateNoPickDM(
+  username: string,
+  round: string,
+  tournamentType: 'march_madness' | 'nba_playoffs' = 'march_madness'
+): Promise<string> {
+  const tournamentName = tournamentType === 'nba_playoffs' ? 'NBA Playoffs' : 'March Madness';
+  const prompt = `You are Betty, a sassy, confident, no-filter ${tournamentName} pool bot for Slack.
 Send a DM to a participant who forgot to submit a pick before the round started and is now eliminated.
 
 Participant username: ${username}
@@ -161,9 +172,11 @@ Generate ONLY the DM message, no other text.`;
 async function generateWinDM(
   username: string,
   teamName: string,
-  round: string
+  round: string,
+  tournamentType: 'march_madness' | 'nba_playoffs' = 'march_madness'
 ): Promise<string> {
-  const prompt = `You are Betty, a sassy, confident, no-filter March Madness pool bot for Slack.
+  const tournamentName = tournamentType === 'nba_playoffs' ? 'NBA Playoffs' : 'March Madness';
+  const prompt = `You are Betty, a sassy, confident, no-filter ${tournamentName} pool bot for Slack.
 Send a DM to a participant whose team just won their game and they're moving on.
 
 Participant username: ${username}
@@ -204,14 +217,16 @@ Generate ONLY the DM message, no other text.`;
 async function generateMidRoundChannelMessage(
   teamName: string,
   round: string,
-  eliminatedUserIds: string[]
+  eliminatedUserIds: string[],
+  tournamentType: 'march_madness' | 'nba_playoffs' = 'march_madness'
 ): Promise<string> {
   const participantsList =
     eliminatedUserIds.length > 0
       ? eliminatedUserIds.map((id) => `<@${id}>`).join(', ')
       : null;
 
-  const prompt = `You are Betty, a sassy, confident, no-filter March Madness pool bot for Slack.
+  const tournamentName = tournamentType === 'nba_playoffs' ? 'NBA Playoffs' : 'March Madness';
+  const prompt = `You are Betty, a sassy, confident, no-filter ${tournamentName} pool bot for Slack.
 Post a channel message announcing that a team just lost and some participants are now eliminated.
 
 Team eliminated: ${teamName}
@@ -253,11 +268,13 @@ Generate ONLY the channel message, no other text. Make it UNIQUE and DIFFERENT f
  */
 async function generateNoPickChannelMessage(
   round: string,
-  eliminatedUserIds: string[]
+  eliminatedUserIds: string[],
+  tournamentType: 'march_madness' | 'nba_playoffs' = 'march_madness'
 ): Promise<string> {
   const participantsList = eliminatedUserIds.map((id) => `<@${id}>`).join(', ');
 
-  const prompt = `You are Betty, a sassy March Madness pool bot for Slack.
+  const tournamentName = tournamentType === 'nba_playoffs' ? 'NBA Playoffs' : 'March Madness';
+  const prompt = `You are Betty, a sassy ${tournamentName} pool bot for Slack.
 The ${round} has started and some participants forgot to submit picks. They are now eliminated.
 
 Eliminated for no pick: ${participantsList}
@@ -291,9 +308,11 @@ Generate ONLY the message.`;
 async function generateEndOfRoundMessage(
   round: string,
   eliminatedCount: number,
-  survivorCount: number
+  survivorCount: number,
+  tournamentType: 'march_madness' | 'nba_playoffs' = 'march_madness'
 ): Promise<string> {
-  const prompt = `You are Betty, a sassy March Madness pool bot for Slack.
+  const tournamentName = tournamentType === 'nba_playoffs' ? 'NBA Playoffs' : 'March Madness';
+  const prompt = `You are Betty, a sassy ${tournamentName} pool bot for Slack.
 The ${round} is complete. Post a round summary.
 
 Participants eliminated this round: ${eliminatedCount}
@@ -328,6 +347,7 @@ Generate ONLY the message.`;
  */
 async function generateWinnerMessage(
   winners: Array<{ slack_user_id: string; slack_username: string | null; seed_sum: number }>,
+  tournamentType: 'march_madness' | 'nba_playoffs' = 'march_madness',
   previousRound?: string
 ): Promise<string> {
   const winnerMentions = winners.map(w => `<@${w.slack_user_id}>`).join(', ');
@@ -336,7 +356,8 @@ async function generateWinnerMessage(
   const seedSumInfo = winners.length === 1 ? `Seed Sum: ${winners[0].seed_sum}` : '';
   const previousRoundInfo = previousRound ? ` (all participants were eliminated in the ${previousRound}, so we went to tiebreaker)` : '';
 
-  const prompt = `You are Betty, a sassy March Madness pool bot for Slack.
+  const tournamentName = tournamentType === 'nba_playoffs' ? 'NBA Playoffs' : 'March Madness';
+  const prompt = `You are Betty, a sassy ${tournamentName} pool bot for Slack.
 The tournament is OVER and we have ${winners.length === 1 ? 'a WINNER' : 'winners (tied)'}!
 
 Winner(s): ${winnerNames}
@@ -368,7 +389,8 @@ Generate ONLY the winner announcement message.`;
     console.error('[resultsProcessor] Claude winner message generation failed:', error);
   }
 
-  return `🏆 WE HAVE A WINNER! ${winnerMentions} just won the March Madness pool! Congrats, champ. Betty out. 🎉`;
+  const poolName = tournamentType === 'nba_playoffs' ? 'NBA Playoffs pool' : 'March Madness pool';
+  return `🏆 WE HAVE A WINNER! ${winnerMentions} just won the ${poolName}! Congrats, champ. Betty out. 🎉`;
 }
 
 // ============================================================================
@@ -548,7 +570,8 @@ export async function eliminateTeam(
     const dmText = await generateEliminationDM(
       participant.slack_username || 'friend',
       team.team_name,
-      round
+      round,
+      currentPool.tournament_type
     );
     await sendDM(participant.slack_user_id, dmText);
   }
@@ -558,7 +581,8 @@ export async function eliminateTeam(
     const channelMsg = await generateMidRoundChannelMessage(
       team.team_name,
       round,
-      eliminatedUserIds
+      eliminatedUserIds,
+      currentPool.tournament_type
     );
     await sendMainChannelMessage(channelMsg);
   }
@@ -673,6 +697,9 @@ async function checkForTournamentEnd(
   currentRound: TournamentRound,
   allParticipants: Participant[]
 ): Promise<boolean> {
+  const pool = await poolModel.getPool(poolId);
+  if (!pool) return false;
+
   const activeSurvivors = allParticipants.filter(p => p.status === 'active');
   const isChampionshipComplete = currentRound === 'Championship';
 
@@ -718,7 +745,7 @@ async function checkForTournamentEnd(
   }
 
   // Send winner announcement
-  const winnerMsg = await generateWinnerMessage(winners, previousRound);
+  const winnerMsg = await generateWinnerMessage(winners, pool.tournament_type, previousRound);
   await sendMainChannelMessage(winnerMsg);
 
   // Mark pool completed
@@ -761,13 +788,13 @@ async function runNoPickSweep(poolId: string, round: TournamentRound): Promise<s
     eliminatedUsernames.push(participant.slack_username || participant.slack_user_id);
 
     // Individual roast DM
-    const dmText = await generateNoPickDM(participant.slack_username || 'friend', round);
+    const dmText = await generateNoPickDM(participant.slack_username || 'friend', round, currentPool?.tournament_type);
     await sendDM(participant.slack_user_id, dmText);
   }
 
   // Channel announcement for no-pick sweep
   if (eliminatedUserIds.length > 0) {
-    const channelMsg = await generateNoPickChannelMessage(round, eliminatedUserIds);
+    const channelMsg = await generateNoPickChannelMessage(round, eliminatedUserIds, currentPool?.tournament_type);
     await sendMainChannelMessage(channelMsg);
   }
 
@@ -784,6 +811,7 @@ async function celebrateWinner(
   canonicalName: string,
   round: TournamentRound
 ): Promise<number> {
+  const pool = await poolModel.getPool(poolId);
   const picks = await getPendingPicksForTeam(poolId, canonicalName, round);
   if (picks.length === 0) return 0;
 
@@ -798,7 +826,8 @@ async function celebrateWinner(
     const dmText = await generateWinDM(
       participant.slack_username || 'friend',
       canonicalName,
-      round
+      round,
+      pool?.tournament_type
     );
     await sendDM(participant.slack_user_id, dmText);
   }
@@ -935,6 +964,10 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
     // Only send end-of-round summary when all expected eliminations for the round are recorded
     const eliminationCount = await getEliminationCountForRound(poolId, round);
     const expectedEliminations = ROUND_ELIMINATION_COUNTS[round];
+    if (!expectedEliminations) {
+      console.log(`[resultsProcessor] No expected elimination count for ${round} — skipping summary`);
+      continue;
+    }
     if (eliminationCount < expectedEliminations) {
       console.log(`[resultsProcessor] ${round}: ${eliminationCount}/${expectedEliminations} eliminations recorded — round not complete yet, skipping summary`);
       continue;
@@ -947,7 +980,7 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
       (p) => p.status === 'eliminated' && p.eliminated_round === round
     ).length;
 
-    const summaryMsg = await generateEndOfRoundMessage(round, eliminatedThisRound, survivors);
+    const summaryMsg = await generateEndOfRoundMessage(round, eliminatedThisRound, survivors, currentPool.tournament_type);
     await sendMainChannelMessage(summaryMsg);
     result.endOfRoundSummariesSent.push(round);
 
@@ -1021,7 +1054,7 @@ export async function simulateRoundEnd(): Promise<{ round: string; nextRound: st
     (p) => p.status === 'eliminated' && p.eliminated_round === round
   ).length;
 
-  const summaryMsg = await generateEndOfRoundMessage(round, eliminatedThisRound, survivors);
+  const summaryMsg = await generateEndOfRoundMessage(round, eliminatedThisRound, survivors, currentPool.tournament_type);
   await sendMainChannelMessage(summaryMsg);
   console.log(`[resultsProcessor] simulateRoundEnd: summary sent for ${round}`);
 
@@ -1053,5 +1086,347 @@ export async function simulateRoundEnd(): Promise<{ round: string; nextRound: st
     await sendMainChannelMessage(`🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`);
     console.log(`[resultsProcessor] simulateRoundEnd: pool advanced to ${nextRound} and unlocked picks`);
     return { round, nextRound };
+  }
+}
+
+// ============================================================================
+// NBA Playoffs Processing
+// ============================================================================
+
+/**
+ * Process NBA Playoffs series results and eliminate losing teams
+ * Uses series completion (team loses 4 games) instead of individual games
+ */
+async function processNBAPlayoffsSeries(poolId: string): Promise<void> {
+  console.log('[resultsProcessor] 🏀 Processing NBA Playoffs series results...');
+
+  const pool = await poolModel.getPool(poolId);
+  if (!pool) {
+    console.error('[resultsProcessor] Pool not found');
+    return;
+  }
+
+  if (!pool.current_round) {
+    console.log('[resultsProcessor] No current round set');
+    return;
+  }
+
+  // Fetch completed series (teams that lost 4 games)
+  const completedSeries = await getCompletedSeries(poolId);
+
+  if (completedSeries.length === 0) {
+    console.log('[resultsProcessor] No completed series found');
+    return;
+  }
+
+  console.log(`[resultsProcessor] Found ${completedSeries.length} completed series`);
+
+  for (const series of completedSeries) {
+    await processSeriesResult(poolId, series, pool.current_round);
+  }
+}
+
+/**
+ * Process a single series result (team lost the series)
+ */
+async function processSeriesResult(
+  poolId: string,
+  series: SeriesResult,
+  currentRound: string
+): Promise<void> {
+  const { losingTeam, winningTeam, finalRecord } = series;
+
+  console.log(`[resultsProcessor] Processing series: ${winningTeam} defeats ${losingTeam} (${finalRecord})`);
+
+  // Check if team is already marked as eliminated
+  const team = await teamModel.getTeamByName(poolId, losingTeam);
+  if (!team) {
+    console.log(`[resultsProcessor] Team not found: ${losingTeam}`);
+    return;
+  }
+
+  if (team.status === 'eliminated') {
+    console.log(`[resultsProcessor] Team already eliminated: ${losingTeam}`);
+    return;
+  }
+
+  // Mark team as eliminated
+  await teamModel.markTeamEliminated(team.id, currentRound as TournamentRound);
+  console.log(`[resultsProcessor] ✅ Team eliminated: ${losingTeam} in ${currentRound}`);
+
+  // Find all picks for this team in current round
+  const picksQuery = await dbPool.query(
+    `SELECT p.*, pa.slack_user_id, pa.slack_username, pa.status as participant_status
+     FROM picks p
+     JOIN participants pa ON p.participant_id = pa.id
+     WHERE p.pool_id = $1 AND p.team_name = $2 AND p.round = $3`,
+    [poolId, losingTeam, currentRound]
+  );
+  const picksForTeam = picksQuery.rows;
+
+  console.log(`[resultsProcessor] Found ${picksForTeam.length} picks for losing team ${losingTeam} in ${currentRound}`);
+
+  if (picksForTeam.length === 0) {
+    console.log(`[resultsProcessor] No picks found for ${losingTeam} in ${currentRound}`);
+    return;
+  }
+
+  const eliminatedUsernames: string[] = [];
+
+  for (const pick of picksForTeam) {
+    // Update pick result
+    await dbPool.query(
+      `UPDATE picks SET result = 'lost', updated_at = NOW() WHERE id = $1`,
+      [pick.id]
+    );
+
+    // Eliminate participant if still active
+    if (pick.participant_status === 'active') {
+      await participantModel.updateParticipant(pick.participant_id, {
+        status: 'eliminated',
+        eliminated_round: currentRound as TournamentRound,
+        eliminated_team: losingTeam,
+      });
+      eliminatedUsernames.push(pick.slack_username);
+
+      // Send elimination DM
+      await sendEliminationMessage(
+        { slack_user_id: pick.slack_user_id, slack_username: pick.slack_username },
+        losingTeam,
+        winningTeam,
+        finalRecord
+      );
+
+      console.log(`[resultsProcessor] ❌ Eliminated participant: ${pick.slack_username}`);
+    }
+  }
+
+  // Send channel announcement if anyone was eliminated
+  if (eliminatedUsernames.length > 0) {
+    await sendChannelElimination(poolId, eliminatedUsernames, losingTeam, winningTeam, finalRecord);
+  }
+
+  // Also celebrate winners (people who picked the winning team)
+  console.log(`[resultsProcessor] Celebrating winners for ${winningTeam} in ${currentRound}`);
+  await celebrateSeriesWinner(poolId, winningTeam, finalRecord, currentRound);
+}
+
+/**
+ * Celebrate participants who picked the winning team in a series
+ */
+async function celebrateSeriesWinner(
+  poolId: string,
+  winningTeam: string,
+  finalRecord: string,
+  currentRound: string
+): Promise<void> {
+  console.log(`[resultsProcessor] Looking for winning picks: poolId=${poolId}, team=${winningTeam}, round=${currentRound}`);
+
+  const winningPicksQuery = await dbPool.query(
+    `SELECT p.*, pa.slack_user_id, pa.slack_username, pa.status as participant_status
+     FROM picks p
+     JOIN participants pa ON p.participant_id = pa.id
+     WHERE p.pool_id = $1 AND p.team_name = $2 AND p.round = $3`,
+    [poolId, winningTeam, currentRound]
+  );
+  const winningPicks = winningPicksQuery.rows;
+
+  console.log(`[resultsProcessor] Found ${winningPicks.length} picks for winning team ${winningTeam} in ${currentRound}`);
+
+  for (const pick of winningPicks) {
+    console.log(`[resultsProcessor] Marking pick ${pick.id} as won for ${pick.slack_username}`);
+
+    // Update pick result
+    await dbPool.query(
+      `UPDATE picks SET result = 'won', updated_at = NOW() WHERE id = $1`,
+      [pick.id]
+    );
+
+    // Send congrats DM only to active participants
+    if (pick.participant_status === 'active') {
+      const congratsMessage = await generateSeriesWinDM(
+        pick.slack_username,
+        winningTeam,
+        finalRecord
+      );
+      await sendDM(pick.slack_user_id, congratsMessage);
+
+      console.log(`[resultsProcessor] 🎉 Celebrated winner: ${pick.slack_username} (picked ${winningTeam})`);
+    } else {
+      console.log(`[resultsProcessor] Skipped DM for inactive participant: ${pick.slack_username}`);
+    }
+  }
+}
+
+/**
+ * Send elimination DM for series loss
+ */
+async function sendEliminationMessage(
+  participant: { slack_user_id: string; slack_username: string },
+  losingTeam: string,
+  winningTeam: string,
+  finalRecord: string
+): Promise<void> {
+  const roastMessage = await generateSeriesLossDM(
+    participant.slack_username,
+    losingTeam,
+    winningTeam,
+    finalRecord
+  );
+  await sendDM(participant.slack_user_id, roastMessage);
+}
+
+/**
+ * Send channel announcement for series eliminations
+ */
+async function sendChannelElimination(
+  poolId: string,
+  eliminatedUsernames: string[],
+  losingTeam: string,
+  winningTeam: string,
+  finalRecord: string
+): Promise<void> {
+  const pool = await poolModel.getPool(poolId);
+  if (!pool) return;
+
+  const eliminatedList = eliminatedUsernames.map((u) => `@${u}`).join(', ');
+  const message = `🏀 **Series Complete:** ${winningTeam} defeats ${losingTeam} (${finalRecord})\n\n❌ **Eliminated:** ${eliminatedList}`;
+
+  await sendMainChannelMessage(message);
+}
+
+/**
+ * Generate roast DM for series loss using Claude
+ */
+async function generateSeriesLossDM(
+  username: string,
+  losingTeam: string,
+  winningTeam: string,
+  finalRecord: string
+): Promise<string> {
+  const prompt = `Generate a short, funny roast message for ${username} whose NBA Playoffs pick ${losingTeam} just lost their series to ${winningTeam} (${finalRecord}). Keep it light and playful, 2-3 sentences max.`;
+
+  const client = getAnthropicClient();
+  const response = await client.messages.create({
+    model: 'claude-3-haiku-20240307',
+    max_tokens: 200,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const roast = response.content[0].type === 'text' ? response.content[0].text : '';
+
+  return `❌ **Your pick ${losingTeam} has been eliminated!**\n\n${roast}\n\nBetter luck next round!`;
+}
+
+/**
+ * Generate congrats DM for series win using Claude
+ */
+async function generateSeriesWinDM(
+  username: string,
+  winningTeam: string,
+  finalRecord: string
+): Promise<string> {
+  const prompt = `Generate a short, enthusiastic congratulations message for ${username} whose NBA Playoffs pick ${winningTeam} just won their series (${finalRecord}). Keep it exciting and celebratory, 2-3 sentences max.`;
+
+  const client = getAnthropicClient();
+  const response = await client.messages.create({
+    model: 'claude-3-haiku-20240307',
+    max_tokens: 200,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const congrats = response.content[0].type === 'text' ? response.content[0].text : '';
+
+  return `🎉 **Your pick ${winningTeam} advances!**\n\n${congrats}\n\nOn to the next round!`;
+}
+
+/**
+ * Check if round is complete and advance if needed
+ * Works for both tournament types
+ */
+async function checkRoundCompletion(poolId: string): Promise<void> {
+  const pool = await poolModel.getPool(poolId);
+  if (!pool || !pool.current_round) return;
+
+  const eliminationCounts =
+    pool.tournament_type === 'nba_playoffs'
+      ? NBA_PLAYOFFS_ELIMINATION_COUNTS
+      : ROUND_ELIMINATION_COUNTS;
+
+  const nextRoundMap =
+    pool.tournament_type === 'nba_playoffs' ? NBA_PLAYOFFS_NEXT_ROUND : NEXT_ROUND;
+
+  const expectedEliminations = eliminationCounts[pool.current_round];
+  if (!expectedEliminations) return;
+
+  const eliminationCountQuery = await dbPool.query(
+    `SELECT COUNT(*) FROM tournament_teams WHERE pool_id = $1 AND eliminated_round = $2`,
+    [poolId, pool.current_round]
+  );
+  const actualEliminations = parseInt(eliminationCountQuery.rows[0].count);
+
+  if (actualEliminations >= expectedEliminations) {
+    console.log(
+      `[resultsProcessor] 🎯 Round complete: ${actualEliminations}/${expectedEliminations} eliminations`
+    );
+
+    // Send end-of-round summary
+    const allParticipants = await participantModel.getParticipantsByPool(poolId);
+    const survivors = allParticipants.filter((p) => p.status === 'active').length;
+    const eliminatedThisRound = allParticipants.filter(
+      (p) => p.status === 'eliminated' && p.eliminated_round === pool.current_round
+    ).length;
+
+    const summaryMsg = await generateEndOfRoundMessage(
+      pool.current_round,
+      eliminatedThisRound,
+      survivors,
+      pool.tournament_type
+    );
+    await sendMainChannelMessage(summaryMsg);
+
+    // Advance to next round
+    const nextRound = nextRoundMap[pool.current_round];
+    if (nextRound) {
+      await poolModel.updatePool(poolId, {
+        current_round: nextRound as TournamentRound,
+        current_round_locked: false,
+      });
+      await sendMainChannelMessage(
+        `🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`
+      );
+      console.log(`[resultsProcessor] Advanced pool to ${nextRound}`);
+    } else {
+      console.log('[resultsProcessor] 🏆 Tournament complete!');
+      await poolModel.updatePool(poolId, { status: 'completed' });
+    }
+  }
+}
+
+// ============================================================================
+// Main Entry Point - Routes by Tournament Type
+// ============================================================================
+
+/**
+ * Main entry point for processing tournament results
+ * Routes to appropriate processor based on tournament type
+ */
+export async function processResults(poolId: string): Promise<void> {
+  const pool = await poolModel.getPool(poolId);
+  if (!pool) {
+    console.error('[resultsProcessor] Pool not found');
+    return;
+  }
+
+  console.log(`[resultsProcessor] Processing results for ${pool.tournament_type} tournament`);
+
+  if (pool.tournament_type === 'nba_playoffs') {
+    // NBA Playoffs: Process series results (best-of-7)
+    await processNBAPlayoffsSeries(poolId);
+    await checkRoundCompletion(poolId);
+  } else {
+    // March Madness: Process individual games
+    // This is called from the scheduler which fetches games first
+    console.log('[resultsProcessor] March Madness mode - processGames should be called with games array');
   }
 }

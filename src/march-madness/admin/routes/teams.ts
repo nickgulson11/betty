@@ -3,7 +3,7 @@ import * as teamModel from '../../models/tournamentTeam';
 import * as poolModel from '../../models/pool';
 import { CreateTeamInput, UpdateTeamInput, BulkImportInput } from '../../types/tournamentTeam';
 import { TournamentRound } from '../../types/pool';
-import { eliminateTeam, processGames, simulateRoundEnd } from '../../services/resultsProcessor';
+import { eliminateTeam, processGames, simulateRoundEnd, processResults } from '../../services/resultsProcessor';
 import { fetchTodaysGames, TournamentGame } from '../../services/ncaaService';
 
 const router = express.Router();
@@ -128,17 +128,37 @@ router.post('/bulk', async (req: Request, res: Response) => {
  * POST /api/teams/sync
  * Trigger an immediate ESPN fetch + results processing cycle.
  * Used by the "Force Sync Now" button in the admin UI.
+ * Routes to appropriate handler based on tournament type.
  */
 router.post('/sync', async (_req: Request, res: Response) => {
   try {
     console.log('[teams/sync] Manual sync triggered by admin');
-    const games = await fetchTodaysGames();
-    const result = await processGames(games);
-    res.json({
-      success: true,
-      message: `Sync complete: ${result.gamesProcessed} game(s) processed, ${result.teamsEliminated.length} team(s) eliminated`,
-      result,
-    });
+
+    const pool = await poolModel.getCurrentPool();
+    if (!pool) {
+      res.status(404).json({ error: 'No active pool found' });
+      return;
+    }
+
+    console.log(`[teams/sync] Processing ${pool.tournament_type} tournament`);
+
+    if (pool.tournament_type === 'nba_playoffs') {
+      // NBA Playoffs: processResults handles fetching and processing series
+      await processResults(pool.id);
+      res.json({
+        success: true,
+        message: `NBA Playoffs sync complete - series data processed`,
+      });
+    } else {
+      // March Madness: fetch games first, then process
+      const games = await fetchTodaysGames();
+      const result = await processGames(games);
+      res.json({
+        success: true,
+        message: `March Madness sync complete: ${result.gamesProcessed} game(s) processed, ${result.teamsEliminated.length} team(s) eliminated`,
+        result,
+      });
+    }
   } catch (error) {
     console.error('Error during manual sync:', error);
     res.status(500).json({ error: 'Sync failed' });
