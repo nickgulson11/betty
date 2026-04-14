@@ -1,71 +1,22 @@
-  - March 20-21, 2025 = Round of 64 games
-  - March 22-23, 2025 = Round of 32 games
-  - March 27-28, 2025 = Sweet Sixteen games
-  - March 29-30, 2025 = Elite Eight games
-  - April 5, 2025 = Final Four games
-  - April 7, 2025 = Championship game
+  - April 19 - May 1ish, 2025 = First Round
+  - May 5-18ish, 2025 = Conference Semifinals
+  - May 20 - June 1ish, 2025 = Conference Finals
+  - June 5-22 2025 = NBA Finals
 
-Duke, 1, East
-Alabama, 2, East
-Wisconsin, 3, East
-Arizona, 4, East
-Oregon, 5, East
-BYU, 6, East
-Saint Mary's, 7, East
-Mississippi State, 8, East
-Baylor, 9, East
-Vanderbilt, 10, East
-VCU, 11, East
-Liberty, 12, East
-Akron, 13, East
-Montana, 14, East
-Robert Morris, 15, East
-Mount St. Mary's, 16, East
-Florida, 1, West
-St. John's, 2, West
-Texas Tech, 3, West
-Maryland, 4, West
-Memphis, 5, West
-Missouri, 6, West
-Kansas, 7, West
-UConn, 8, West
-Oklahoma, 9, West
-Arkansas, 10, West
-Drake, 11, West
-Colorado State, 12, West
-Grand Canyon, 13, West
-UNC Wilmington, 14, West
-Omaha, 15, West
-Norfolk State, 16, West
-Auburn, 1, South
-Michigan State, 2, South
-Iowa State, 3, South
-Texas A&M, 4, South
-Michigan, 5, South
-Ole Miss, 6, South
-Marquette, 7, South
-Louisville, 8, South
-Creighton, 9, South
-New Mexico, 10, South
-North Carolina, 11, South
-UC San Diego, 12, South
-Yale, 13, South
-Lipscomb, 14, South
-Bryant, 15, South
-Alabama State, 16, South
-Houston, 1, Midwest
-Tennessee, 2, Midwest
-Kentucky, 3, Midwest
-Purdue, 4, Midwest
-Clemson, 5, Midwest
-Illinois, 6, Midwest
-UCLA, 7, Midwest
-Gonzaga, 8, Midwest
-Georgia, 9, Midwest
-Utah State, 10, Midwest
-Xavier, 11, Midwest
-McNeese, 12, Midwest
-High Point, 13, Midwest
-Troy, 14, Midwest
-Wofford, 15, Midwest
-SIU Edwardsville, 16, Midwest
+
+Oklahoma City Thunder, 1, West
+Houston Rockets, 2, West
+Los Angeles Lakers, 3, West
+Denver Nuggets, 4, West
+Los Angeles Clippers, 5, West
+Minnesota Timberwolves, 6, West
+Golden State Warriors, 7, West
+Memphis Grizzlies, 8, West
+Cleveland Cavaliers, 1, East
+Boston Celtics, 2, East
+New York Knicks, 3, East
+Indiana Pacers, 4, East
+Milwaukee Bucks, 5, East
+Detroit Pistons, 6, East
+Orlando Magic, 7, East
+Miami Heat, 8, East
