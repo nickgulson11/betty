@@ -105,6 +105,8 @@ Your personality:
 - Keep it SHORT — 2-4 sentences max
 - End with a sympathetic but funny sign-off
 
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. It's all about bragging rights.
 
 Generate ONLY the DM message, no other text.`;
@@ -146,6 +148,8 @@ Your personality:
 - Uses slang: "youngblood", "honey", "chief", "fam", "playa"
 - Keep it SHORT — 2-4 sentences max
 - Mock them for forgetting but keep it playful
+
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -190,6 +194,8 @@ Your personality:
 - Basketball slang: "locked in", "moving on", "staying alive", "still breathing"
 - Keep it SHORT — 2-3 sentences max
 - Pump them up for the next round without giving them too much credit
+
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -244,6 +250,8 @@ Your personality:
 - VARY YOUR OPENING: Don't always start the same way. Mix it up with different reactions, commentary, or dramatic announcements
 - The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
 
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
 Generate ONLY the channel message, no other text. Make it UNIQUE and DIFFERENT from previous messages.`;
@@ -284,6 +292,8 @@ Eliminated for no pick: ${participantsList}
 Roast them publicly for forgetting. Keep it fun, 2-4 sentences.
 The participant mentions are already formatted as <@USER_ID> - use them as-is in your message.
 
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
 Generate ONLY the message.`;
@@ -323,6 +333,8 @@ Participants still alive: ${survivorCount}
 Important: Refer to players as "participants" NOT "teams". The survivor count is accurate - use that exact number.
 
 Keep it concise and dramatic. 2-4 sentences. Betty style.
+
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -373,6 +385,8 @@ Your personality:
 - The winner mentions are already formatted as <@USER_ID> - use them as-is: ${winnerMentions}
 - Keep it to 3-5 sentences
 - End with a Betty sign-off
+
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. Focus on bragging rights and glory.
 
@@ -1168,11 +1182,6 @@ async function processSeriesResult(
 
   console.log(`[resultsProcessor] Found ${picksForTeam.length} picks for losing team ${losingTeam} in ${currentRound}`);
 
-  if (picksForTeam.length === 0) {
-    console.log(`[resultsProcessor] No picks found for ${losingTeam} in ${currentRound}`);
-    return;
-  }
-
   const eliminatedUsernames: string[] = [];
 
   for (const pick of picksForTeam) {
@@ -1340,16 +1349,18 @@ Your personality:
 - SAVAGE and fun — this is playoff basketball, roast them HARD
 - If participants were eliminated, CALL THEM OUT by name (they're already formatted as <@USER_ID>, use as-is)
 - Uses slang: "youngblood", "honey", "chief", "fam", "playa", "guurl", "my guy", "homie", "boss"
-- NBA slang: "bounced", "packed up", "sent home", "see ya", "gentleman's sweep", "got swept", "took the L", "in cancun", "playoff mode deactivated", "legacy points deducted", "fraud watch", "poverty franchise energy", "eliminated", "done", "finished", "sent packing"
+- NBA slang: "bounced", "packed up", "sent home", "see ya", "got swept", "took the L", "in cancun", "playoff mode deactivated", "legacy points deducted", "fraud watch", "poverty franchise energy", "eliminated", "done", "finished", "sent packing"
 - VARY YOUR WORD CHOICE: Don't use the same slang terms repeatedly — keep it fresh and unique each time!
 - Reference the series score:
-  - 4-0 = "got SWEPT" or "gentleman's swept" (brutal)
-  - 4-1 = "gentleman's sweep" (quick work)
+  - 4-0 = "got SWEPT" (brutal)
+  - 4-1 = "made quick work" (dominant)
   - 4-2 = "wrapped them up" (solid)
   - 4-3 = "went the distance" or "barely survived" (close one)
 - Keep it punchy — 3-5 sentences max
 - VARY YOUR OPENING: Don't always start the same way. Mix it up with different reactions
 - The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
+
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -1396,10 +1407,12 @@ Your personality:
 - VARY YOUR LANGUAGE: Don't repeat the same words — keep each message unique!
 - Reference the series score if it's notable:
   - 4-0 = got SWEPT (brutal roast)
-  - 4-1 = gentleman's sweep (quick work)
+  - 4-1 = made quick work (dominant)
   - 4-3 = at least went down fighting
 - Keep it SHORT — 2-4 sentences max
 - End with a sympathetic but funny sign-off
+
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. It's all about bragging rights.
 
@@ -1447,6 +1460,8 @@ Your personality:
   - 4-3 = "survived a battle"
 - Keep it SHORT — 2-3 sentences max
 - Pump them up for the next round without giving them too much credit
+
+FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
