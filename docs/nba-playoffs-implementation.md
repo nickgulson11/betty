@@ -3,7 +3,7 @@
 **Date:** April 13, 2026
 **Status:** ⚠️ Implementation Complete - Testing In Progress
 
-**Last Updated:** April 13, 2026 (Session 2)
+**Last Updated:** April 14, 2026 (Session 3)
 
 ---
 
@@ -161,12 +161,78 @@ Extending march-madness mode keeps the codebase simpler. Future pool types (NFL 
 - Logs show: picks found, teams matched, round used for queries
 - Helps debug issues with picks not being marked as won/lost
 
+## Recent Updates (Session 3 - April 14, 2026)
+
+### Betty Messaging Overhaul - SAVAGE MODE ACTIVATED 🔥
+
+**Problem:** NBA Playoffs messaging was bland and generic, lacking the savage Betty personality from March Madness.
+
+**Solution:** Complete rewrite of all NBA messaging functions to match March Madness energy with NBA-specific flavor.
+
+#### Channel Announcements (Now SAVAGE)
+**Before:**
+```
+🏀 Series Complete: Lakers defeats Warriors (4-2)
+❌ Eliminated: @user1, @user2
+```
+
+**After:**
+- Full Betty personality with savage roasts
+- NBA-specific slang: "in cancun", "playoff mode deactivated", "legacy points deducted", "fraud watch", "poverty franchise energy"
+- Context-aware series roasts:
+  - 4-0 sweeps: "got SWEPT" (brutal)
+  - 4-1: "gentleman's sweep"
+  - 4-2: "wrapped them up"
+  - 4-3: "went the distance"
+- Calls out eliminated participants with `<@USER_ID>` mentions
+- Uses Claude Haiku 4-5 for varied, unique roasts
+
+#### Elimination DMs (Private Consolation Roast)
+- Betty's sassy voice with sympathetic ending
+- Includes series context (opponent, score)
+- NBA slang: "taking an L", "got bounced", "sent home", "playoff mode over", "legacy in shambles"
+- Roast severity matches how they lost (4-0 = brutal, 4-3 = "fought hard")
+- Private, less harsh than public channel roast
+
+#### Win Celebration DMs
+- Betty hype with NBA flair
+- References series dominance
+- Slang: "locked in", "playoff mode activated", "built different", "championship DNA"
+- Contextual based on series score (swept vs close series)
+
+#### Slang Variety Improvements
+- Removed overused "cooked" from all prompts (both March Madness and NBA)
+- Added explicit "VARY YOUR WORD CHOICE" instructions to Claude prompts
+- Expanded slang options: "bounced", "sent packing", "eliminated", "done", "finished", "packed up", "washed", "toast", "see ya"
+- Instructions to keep messages unique and avoid repetition
+
+#### Files Modified (Session 3):
+- `src/march-madness/services/resultsProcessor.ts`:
+  - Updated `sendChannelElimination()` - now generates savage roasts with user mentions
+  - Added `generateNBASeriesChannelRoast()` - new function with full Betty personality
+  - Updated `generateSeriesLossDM()` - Betty voice + NBA context + series scores
+  - Updated `generateSeriesWinDM()` - Betty hype + series context
+  - Upgraded all Claude calls from `claude-3-haiku-20240307` to `claude-haiku-4-5`
+  - Removed "cooked" from all slang lists, added variety instructions
+
+- `src/march-madness/models/participant.ts`:
+  - Added `getParticipantByUsername()` function for looking up Slack user IDs from usernames
+
+#### Message Flow
+**When a participant is eliminated:**
+1. **Private DM** (sympathetic roast) → eliminated participant only
+2. **Public Channel** (SAVAGE roast) → entire channel with @mentions
+
+**When a participant advances:**
+1. **Private DM** (hype message) → winning participant only
+
 ## Files Summary
 
 **Created:** 3 new files
-**Modified:** 12+ existing files
-**Lines Added:** ~800
+**Modified:** 14+ existing files (2 additional in Session 3)
+**Lines Added:** ~1000 (includes Session 3 messaging overhaul)
 **Database Changes:** 1 column
+**Functions Added:** 2 (Session 3: `generateNBASeriesChannelRoast`, `getParticipantByUsername`)
 
 ## Known Issues
 
@@ -220,15 +286,41 @@ Extending march-madness mode keeps the codebase simpler. Future pool types (NFL 
 
 1. ✅ Dynamic round filters implemented
 2. ✅ Tournament-specific messaging implemented
-3. ⏳ Debug and fix picks not being marked as won
-4. ⏳ User runs `npm run build` to verify compilation
-5. ⏳ User deploys to production
-6. ⏳ User tests with live NBA Playoffs data
-7. Optional: Add series progress tracking ("Lakers lead 3-2")
+3. ✅ Savage channel roasts with Betty personality
+4. ✅ NBA-specific slang and series context
+5. ✅ Removed "cooked" overuse from all prompts
+6. ⏳ Debug and fix picks not being marked as won (known issue)
+7. ⏳ User runs `npm run build` to verify compilation
+8. ⏳ User deploys to production
+9. ⏳ User tests with live NBA Playoffs data
+10. Optional: Add series progress tracking ("Lakers lead 3-2")
+
+---
+
+## Session Summary
+
+### Session 1 (April 13, 2026)
+- ✅ Initial NBA Playoffs support implementation
+- ✅ Series-based elimination logic
+- ✅ ESPN NBA API integration
+- ✅ Database schema updates
+
+### Session 2 (April 13, 2026)
+- ✅ Dynamic admin console (round filters, Force Sync button)
+- ✅ Tournament-specific messaging framework
+- ✅ Enhanced logging for debugging
+
+### Session 3 (April 14, 2026)
+- ✅ Complete messaging overhaul with savage Betty personality
+- ✅ NBA-specific slang and series context in all messages
+- ✅ Channel roasts with @mentions and varied language
+- ✅ Removed "cooked" overuse, added variety instructions
+- ✅ Private DMs vs public roasts differentiation
+- ✅ Updated docs with Session 3 changes
 
 ---
 
 **Implementation:** Complete ✅
-**Documentation:** Updated ✅
+**Documentation:** Updated ✅ (Session 3)
 **Testing:** In Progress ⚠️
 **Known Issues:** 1 (picks not marked as won - under investigation)

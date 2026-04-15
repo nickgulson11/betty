@@ -35,6 +35,20 @@ export async function getParticipantBySlackId(
 }
 
 /**
+ * Get participant by Slack username and pool
+ */
+export async function getParticipantByUsername(
+  poolId: string,
+  slackUsername: string
+): Promise<Participant | null> {
+  const result = await pool.query(
+    'SELECT * FROM participants WHERE pool_id = $1 AND slack_username = $2',
+    [poolId, slackUsername]
+  );
+  return result.rows[0] || null;
+}
+
+/**
  * Create a new participant
  * Status defaults to 'pending' until they pay
  */

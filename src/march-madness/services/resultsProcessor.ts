@@ -100,7 +100,8 @@ Round: ${round}
 Your personality:
 - Sassy, fun, playful trash talk — not mean-spirited
 - Uses slang: "youngblood", "honey", "chief", "fam", "playa", "guurl"
-- Basketball slang: "cooked", "taking an L", "got bounced", "packed up their bags"
+- Basketball slang: "taking an L", "got bounced", "packed up their bags", "sent packing", "eliminated", "done", "finished"
+- VARY your word choice — don't repeat the same slang every time
 - Keep it SHORT — 2-4 sentences max
 - End with a sympathetic but funny sign-off
 
@@ -237,7 +238,8 @@ Your personality:
 - Sassy and fun, roast the eliminated participants
 - If no participants were eliminated, still announce the team loss dramatically
 - Uses slang: "youngblood", "honey", "chief", "fam", "playa", "guurl", "my guy", "homie", "boss"
-- Basketball slang: "cooked", "bounced", "packed up", "L szn", "toast", "washed", "done for", "got smoked", "caught the bus", "see ya"
+- Basketball slang: "bounced", "packed up", "L szn", "toast", "washed", "done for", "got smoked", "caught the bus", "see ya", "sent packing", "eliminated", "out", "finished"
+- VARY YOUR WORD CHOICE: Don't repeat the same slang terms in every message — mix it up!
 - Keep it punchy — 3-5 sentences max
 - VARY YOUR OPENING: Don't always start the same way. Mix it up with different reactions, commentary, or dramatic announcements
 - The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
@@ -1277,7 +1279,7 @@ async function sendEliminationMessage(
 }
 
 /**
- * Send channel announcement for series eliminations
+ * Send channel announcement for series eliminations - SAVAGE ROAST EDITION
  */
 async function sendChannelElimination(
   poolId: string,
@@ -1289,14 +1291,89 @@ async function sendChannelElimination(
   const pool = await poolModel.getPool(poolId);
   if (!pool) return;
 
-  const eliminatedList = eliminatedUsernames.map((u) => `@${u}`).join(', ');
-  const message = `🏀 **Series Complete:** ${winningTeam} defeats ${losingTeam} (${finalRecord})\n\n❌ **Eliminated:** ${eliminatedList}`;
+  // Get slack user IDs for mentions (need to look them up from usernames)
+  const eliminatedUserIds: string[] = [];
+  for (const username of eliminatedUsernames) {
+    const participant = await participantModel.getParticipantByUsername(poolId, username);
+    if (participant) {
+      eliminatedUserIds.push(participant.slack_user_id);
+    }
+  }
 
-  await sendMainChannelMessage(message);
+  // Generate savage roast message
+  const roastMessage = await generateNBASeriesChannelRoast(
+    losingTeam,
+    winningTeam,
+    finalRecord,
+    eliminatedUserIds,
+    pool.current_round || 'NBA Playoffs'
+  );
+
+  await sendMainChannelMessage(roastMessage);
 }
 
 /**
- * Generate roast DM for series loss using Claude
+ * Generate savage channel roast for NBA series elimination
+ */
+async function generateNBASeriesChannelRoast(
+  losingTeam: string,
+  winningTeam: string,
+  finalRecord: string,
+  eliminatedUserIds: string[],
+  round: string
+): Promise<string> {
+  const participantsList =
+    eliminatedUserIds.length > 0
+      ? eliminatedUserIds.map((id) => `<@${id}>`).join(', ')
+      : 'nobody (lucky y\'all)';
+
+  const prompt = `You are Betty, a sassy, confident, no-filter NBA Playoffs pool bot for Slack.
+Post a channel message announcing that ${losingTeam} just lost their series to ${winningTeam} (${finalRecord}) and some participants are now eliminated.
+
+Team eliminated: ${losingTeam}
+Winning team: ${winningTeam}
+Series score: ${finalRecord}
+Round: ${round}
+Eliminated participants: ${participantsList}
+
+Your personality:
+- SAVAGE and fun — this is playoff basketball, roast them HARD
+- If participants were eliminated, CALL THEM OUT by name (they're already formatted as <@USER_ID>, use as-is)
+- Uses slang: "youngblood", "honey", "chief", "fam", "playa", "guurl", "my guy", "homie", "boss"
+- NBA slang: "bounced", "packed up", "sent home", "see ya", "gentleman's sweep", "got swept", "took the L", "in cancun", "playoff mode deactivated", "legacy points deducted", "fraud watch", "poverty franchise energy", "eliminated", "done", "finished", "sent packing"
+- VARY YOUR WORD CHOICE: Don't use the same slang terms repeatedly — keep it fresh and unique each time!
+- Reference the series score:
+  - 4-0 = "got SWEPT" or "gentleman's swept" (brutal)
+  - 4-1 = "gentleman's sweep" (quick work)
+  - 4-2 = "wrapped them up" (solid)
+  - 4-3 = "went the distance" or "barely survived" (close one)
+- Keep it punchy — 3-5 sentences max
+- VARY YOUR OPENING: Don't always start the same way. Mix it up with different reactions
+- The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
+
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
+
+Generate ONLY the channel message, no other text. Make it UNIQUE and SAVAGE.`;
+
+  try {
+    const client = getAnthropicClient();
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 250,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const content = message.content[0];
+    if (content.type === 'text') return content.text.trim();
+  } catch (error) {
+    console.error('[resultsProcessor] Claude NBA channel roast generation failed:', error);
+  }
+
+  // Fallback
+  return `🏀 ${losingTeam} got BOUNCED by ${winningTeam} (${finalRecord})! ${participantsList} — pack your bags, you're DONE! 💀`;
+}
+
+/**
+ * Generate roast DM for series loss - Betty style with NBA context
  */
 async function generateSeriesLossDM(
   username: string,
@@ -1304,40 +1381,92 @@ async function generateSeriesLossDM(
   winningTeam: string,
   finalRecord: string
 ): Promise<string> {
-  const prompt = `Generate a short, funny roast message for ${username} whose NBA Playoffs pick ${losingTeam} just lost their series to ${winningTeam} (${finalRecord}). Keep it light and playful, 2-3 sentences max.`;
+  const prompt = `You are Betty, a sassy, confident, no-filter NBA Playoffs pool bot for Slack.
+Send a DM to a participant whose team just got eliminated from the playoffs.
 
-  const client = getAnthropicClient();
-  const response = await client.messages.create({
-    model: 'claude-3-haiku-20240307',
-    max_tokens: 200,
-    messages: [{ role: 'user', content: prompt }],
-  });
+Participant username: ${username}
+Their team: ${losingTeam}
+Lost to: ${winningTeam}
+Series score: ${finalRecord}
 
-  const roast = response.content[0].type === 'text' ? response.content[0].text : '';
+Your personality:
+- Sassy, fun, playful trash talk — roast them but keep it light
+- Uses slang: "youngblood", "honey", "chief", "fam", "playa", "guurl"
+- NBA slang: "taking an L", "got bounced", "sent home", "in cancun now", "playoff mode over", "legacy in shambles", "eliminated", "done", "packed up", "sent packing"
+- VARY YOUR LANGUAGE: Don't repeat the same words — keep each message unique!
+- Reference the series score if it's notable:
+  - 4-0 = got SWEPT (brutal roast)
+  - 4-1 = gentleman's sweep (quick work)
+  - 4-3 = at least went down fighting
+- Keep it SHORT — 2-4 sentences max
+- End with a sympathetic but funny sign-off
 
-  return `❌ **Your pick ${losingTeam} has been eliminated!**\n\n${roast}\n\nBetter luck next round!`;
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. It's all about bragging rights.
+
+Generate ONLY the DM message, no other text.`;
+
+  try {
+    const client = getAnthropicClient();
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 150,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const content = message.content[0];
+    if (content.type === 'text') return content.text.trim();
+  } catch (error) {
+    console.error('[resultsProcessor] Claude NBA loss DM generation failed:', error);
+  }
+
+  // Fallback
+  return `😬 Tough break, ${username}. ${losingTeam} got sent home by ${winningTeam} (${finalRecord}) — you're out of the pool. Better luck next year, youngblood 💀`;
 }
 
 /**
- * Generate congrats DM for series win using Claude
+ * Generate congrats DM for series win - Betty style with NBA hype
  */
 async function generateSeriesWinDM(
   username: string,
   winningTeam: string,
   finalRecord: string
 ): Promise<string> {
-  const prompt = `Generate a short, enthusiastic congratulations message for ${username} whose NBA Playoffs pick ${winningTeam} just won their series (${finalRecord}). Keep it exciting and celebratory, 2-3 sentences max.`;
+  const prompt = `You are Betty, a sassy, confident, no-filter NBA Playoffs pool bot for Slack.
+Send a DM to a participant whose team just won their playoff series and they're moving on.
 
-  const client = getAnthropicClient();
-  const response = await client.messages.create({
-    model: 'claude-3-haiku-20240307',
-    max_tokens: 200,
-    messages: [{ role: 'user', content: prompt }],
-  });
+Participant username: ${username}
+Their team: ${winningTeam}
+Series score: ${finalRecord}
 
-  const congrats = response.content[0].type === 'text' ? response.content[0].text : '';
+Your personality:
+- Hype them up but keep it playful — a little smug, like you knew they'd make it
+- Uses slang: "youngblood", "honey", "chief", "fam", "playa"
+- NBA slang: "locked in", "moving on", "still breathing", "advancing", "playoff mode activated", "built different", "championship DNA"
+- Reference series dominance if notable:
+  - 4-0 = "SWEPT the competition"
+  - 4-1 = "made quick work"
+  - 4-3 = "survived a battle"
+- Keep it SHORT — 2-3 sentences max
+- Pump them up for the next round without giving them too much credit
 
-  return `🎉 **Your pick ${winningTeam} advances!**\n\n${congrats}\n\nOn to the next round!`;
+IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
+
+Generate ONLY the DM message, no other text.`;
+
+  try {
+    const client = getAnthropicClient();
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 150,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const content = message.content[0];
+    if (content.type === 'text') return content.text.trim();
+  } catch (error) {
+    console.error('[resultsProcessor] Claude NBA win DM generation failed:', error);
+  }
+
+  // Fallback
+  return `🎉 ${winningTeam} closed out the series (${finalRecord}), ${username}! Nice pick — you're moving on. Don't get too comfortable yet, youngblood 🏀`;
 }
 
 /**
