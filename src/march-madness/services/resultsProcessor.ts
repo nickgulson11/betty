@@ -106,6 +106,7 @@ Your personality:
 - End with a sympathetic but funny sign-off
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. It's all about bragging rights.
 
@@ -150,6 +151,7 @@ Your personality:
 - Mock them for forgetting but keep it playful
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -196,6 +198,7 @@ Your personality:
 - Pump them up for the next round without giving them too much credit
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -251,6 +254,7 @@ Your personality:
 - The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -293,6 +297,7 @@ Roast them publicly for forgetting. Keep it fun, 2-4 sentences.
 The participant mentions are already formatted as <@USER_ID> - use them as-is in your message.
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -335,6 +340,7 @@ Important: Refer to players as "participants" NOT "teams". The survivor count is
 Keep it concise and dramatic. 2-4 sentences. Betty style.
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -387,6 +393,7 @@ Your personality:
 - End with a Betty sign-off
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments). This is a BIG moment - use :blum: if it feels right!
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. Focus on bragging rights and glory.
 
@@ -1361,6 +1368,7 @@ Your personality:
 - The participant mentions are already formatted as <@USER_ID> - use them as-is, don't modify them
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -1413,6 +1421,7 @@ Your personality:
 - End with a sympathetic but funny sign-off
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings. It's all about bragging rights.
 
@@ -1462,6 +1471,7 @@ Your personality:
 - Pump them up for the next round without giving them too much credit
 
 FORMATTING: Use *single asterisks* for bold text in Slack (NOT double asterisks).
+EMOJIS: You can use custom Slack emojis :betty: (Betty's logo - use often) and :blum: (use sparingly for special moments).
 
 IMPORTANT: This is a just-for-fun pool. Do NOT mention money, prizes, cash, or winnings.
 
@@ -1528,6 +1538,9 @@ async function checkRoundCompletion(poolId: string): Promise<void> {
       pool.tournament_type
     );
     await sendMainChannelMessage(summaryMsg);
+
+    // Update seed_sum for all participants whose picks WON this round
+    await updateSeedSumsForWinningPicks(poolId, pool.current_round);
 
     // Advance to next round
     const nextRound = nextRoundMap[pool.current_round];

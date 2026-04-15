@@ -118,7 +118,7 @@ export async function sendWelcomeDM(
   const exampleTeam2 = tournamentType === 'nba_playoffs' ? 'Celtics' : 'North Carolina';
   const exampleTeam3 = tournamentType === 'nba_playoffs' ? 'Nuggets' : 'Gonzaga';
 
-  const message = `👋 Welcome to the **${poolName}**! 🏀
+  const message = `👋 Welcome to the *${poolName}*! 🏀
 
 Here's how it works:
 • Pick ONE team per round (${roundCount} rounds total)
@@ -127,7 +127,7 @@ Here's how it works:
 • You CANNOT reuse teams (once you pick ${exampleTeam1}, ${exampleTeam1} is unavailable for all future rounds)
 • Picks are due before the first game of each round starts
 
-**How to submit your pick:**
+*How to submit your pick:*
 Just DM me the team name! For example:
 \`${exampleTeam1}\`
 \`${exampleTeam2}\`
@@ -148,10 +148,10 @@ export async function sendPickConfirmation(
   teamName: string,
   round: string
 ): Promise<boolean> {
-  const message = `✅ **Pick confirmed!**
+  const message = `✅ *Pick confirmed!*
 
-**Round:** ${round}
-**Your team:** ${teamName}
+*Round:* ${round}
+*Your team:* ${teamName}
 
 You can change your pick anytime before the deadline. Just send me a new team name and I'll update it.
 
@@ -169,11 +169,11 @@ export async function sendPickUpdateConfirmation(
   newTeam: string,
   round: string
 ): Promise<boolean> {
-  const message = `🔄 **Pick updated!**
+  const message = `🔄 *Pick updated!*
 
-**Round:** ${round}
-**Old pick:** ${oldTeam}
-**New pick:** ${newTeam}
+*Round:* ${round}
+*Old pick:* ${oldTeam}
+*New pick:* ${newTeam}
 
 Your pick has been updated. You can change it again before the deadline if needed.
 
@@ -186,7 +186,7 @@ Good luck! 🏀`;
  * Send error message via DM
  */
 export async function sendErrorDM(userId: string, errorMessage: string): Promise<boolean> {
-  const message = `❌ **Oops!**
+  const message = `❌ *Oops!*
 
 ${errorMessage}
 
@@ -212,10 +212,10 @@ export async function sendDeadlineReminderDM(
     timeZoneName: 'short',
   });
 
-  const message = `⏰ **Deadline Reminder!**
+  const message = `⏰ *Deadline Reminder!*
 
-**Round:** ${round}
-**Deadline:** ${deadlineStr}
+*Round:* ${round}
+*Deadline:* ${deadlineStr}
 
 You haven't submitted your pick yet! Send me a team name before the deadline or you'll be automatically eliminated.
 
