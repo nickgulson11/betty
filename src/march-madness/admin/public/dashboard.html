@@ -138,6 +138,17 @@
           <button class="btn btn-secondary" onclick="loadPicksSummary()">📊 View Summary</button>
         </div>
 
+        <!-- Missing Picks Alert -->
+        <div id="missing-picks-alert" class="missing-picks-alert" style="display: none;">
+          <div class="missing-picks-header" onclick="toggleMissingPicks()">
+            <span id="missing-picks-title">⚠️ Missing Picks for Round (0)</span>
+            <span id="missing-picks-toggle">▼</span>
+          </div>
+          <div id="missing-picks-content" class="missing-picks-content">
+            <ul id="missing-picks-list"></ul>
+          </div>
+        </div>
+
         <table id="picks-table">
           <thead>
             <tr>
