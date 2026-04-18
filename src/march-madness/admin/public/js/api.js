@@ -70,7 +70,6 @@ const api = {
   updatePick: (id, data) => apiRequest(`/picks/${id}`, 'PUT', data),
   deletePick: (id) => apiRequest(`/picks/${id}`, 'DELETE'),
   getPicksSummary: () => apiRequest('/picks/summary/current'),
-  getMissingPicks: (round) => apiRequest(`/picks/missing/${round}`),
 
   // Betty
   sendMessage: (destination, message, target = null) =>

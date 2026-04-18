@@ -287,73 +287,13 @@ async function loadPicks() {
     const round = document.getElementById('round-filter')?.value || currentPool?.current_round;
     if (round) {
       picks = await api.getPicksByRound(round);
-      // Also load missing picks for this round
-      await loadMissingPicks(round);
     } else {
       picks = await api.getPicks();
-      // Load missing picks for current round if available
-      if (currentPool?.current_round) {
-        await loadMissingPicks(currentPool.current_round);
-      }
     }
     renderPicks();
   } catch (error) {
     console.error('Error loading picks:', error);
     alert('Failed to load picks');
-  }
-}
-
-async function loadMissingPicks(round) {
-  try {
-    const result = await api.getMissingPicks(round);
-    renderMissingPicks(result);
-  } catch (error) {
-    console.error('Error loading missing picks:', error);
-    // Don't alert - just hide the missing picks section
-    document.getElementById('missing-picks-alert').style.display = 'none';
-  }
-}
-
-function renderMissingPicks(result) {
-  const alertBox = document.getElementById('missing-picks-alert');
-  const title = document.getElementById('missing-picks-title');
-  const list = document.getElementById('missing-picks-list');
-
-  if (!result || result.missingCount === 0) {
-    // Hide the alert if there are no missing picks
-    alertBox.style.display = 'none';
-    return;
-  }
-
-  // Show the alert
-  alertBox.style.display = 'block';
-  title.textContent = `⚠️ Missing Picks for ${result.round} (${result.missingCount})`;
-
-  // Populate the list
-  list.innerHTML = result.participants
-    .map(
-      (p) => `
-      <li>
-        <strong>@${p.slack_username || 'Unknown'}</strong>
-        <code>${p.slack_user_id}</code>
-      </li>
-    `
-    )
-    .join('');
-}
-
-function toggleMissingPicks() {
-  const content = document.getElementById('missing-picks-content');
-  const toggle = document.getElementById('missing-picks-toggle');
-
-  if (content.classList.contains('collapsed')) {
-    content.classList.remove('collapsed');
-    toggle.classList.remove('collapsed');
-    toggle.textContent = '▼';
-  } else {
-    content.classList.add('collapsed');
-    toggle.classList.add('collapsed');
-    toggle.textContent = '▶';
   }
 }
 

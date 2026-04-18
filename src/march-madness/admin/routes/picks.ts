@@ -247,46 +247,4 @@ router.get('/summary/current', async (_req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/picks/missing/:round
- * Get active participants who haven't submitted picks for a specific round
- */
-router.get('/missing/:round', async (req: Request, res: Response) => {
-  try {
-    const pool = await poolModel.getCurrentPool();
-
-    if (!pool) {
-      res.status(404).json({ error: 'No active pool found' });
-      return;
-    }
-
-    const round = req.params.round as TournamentRound;
-
-    // Get all active, paid participants
-    const result = await pool.query(
-      `SELECT p.id, p.slack_user_id, p.slack_username, p.status, p.paid
-       FROM participants p
-       WHERE p.pool_id = $1
-         AND p.status = 'active'
-         AND p.paid = true
-         AND NOT EXISTS (
-           SELECT 1 FROM picks pk
-           WHERE pk.participant_id = p.id
-             AND pk.round = $2
-         )
-       ORDER BY p.slack_username ASC`,
-      [pool.id, round]
-    );
-
-    res.json({
-      round,
-      missingCount: result.rows.length,
-      participants: result.rows,
-    });
-  } catch (error) {
-    console.error('Error fetching missing picks:', error);
-    res.status(500).json({ error: 'Failed to fetch missing picks' });
-  }
-});
-
 export default router;
