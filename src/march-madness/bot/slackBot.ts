@@ -125,7 +125,7 @@ export async function startMarchMadnessBot(port: number): Promise<void> {
         if (!pick || !round) {
           await say(`You haven't submitted a pick for the current round yet.`);
         } else {
-          await say(`Your pick for **${round}**: **${pick.team_name}**\n\nYou can change it by sending me a new team name.`);
+          await say(`Your pick for *${round}*: *${pick.team_name}*\n\nYou can change it by sending me a new team name.`);
         }
         return;
       }

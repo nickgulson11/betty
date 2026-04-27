@@ -31,6 +31,7 @@ export interface Pool {
   completed_at: Date | null;
   override_date: Date | null; // Testing only: manually set date for ESPN API
   current_round_locked: boolean; // TRUE when current round games started, picks locked
+  allow_next_round_picks: boolean; // TRUE when admin enables accepting picks for next round while current in progress
 }
 
 export interface CreatePoolInput {
@@ -50,4 +51,5 @@ export interface UpdatePoolInput {
   entry_fee?: number;
   override_date?: Date | null;
   current_round_locked?: boolean;
+  allow_next_round_picks?: boolean;
 }

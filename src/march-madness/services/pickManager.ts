@@ -6,6 +6,32 @@ import { sendPickConfirmation, sendPickUpdateConfirmation } from './slackMessagi
 import { matchTeamName } from './teamMatcher';
 import { hasRoundStarted as ncaaRoundStarted } from './ncaaService';
 import { hasRoundStarted as nbaPlayoffsRoundStarted } from './nbaPlayoffsService';
+import { NBA_PLAYOFFS_NEXT_ROUND } from '../constants/nbaPlayoffs';
+import { TournamentRound, TournamentType } from '../types/pool';
+
+// March Madness next round mapping
+const NEXT_ROUND: Partial<Record<TournamentRound, TournamentRound | null>> = {
+  'Round of 64': 'Round of 32',
+  'Round of 32': 'Sweet Sixteen',
+  'Sweet Sixteen': 'Elite Eight',
+  'Elite Eight': 'Final Four',
+  'Final Four': 'Championship',
+  'Championship': null,
+};
+
+/**
+ * Get the next round for a given tournament type
+ */
+function getNextRound(
+  currentRound: TournamentRound,
+  tournamentType: TournamentType
+): TournamentRound | null {
+  if (tournamentType === 'nba_playoffs') {
+    return NBA_PLAYOFFS_NEXT_ROUND[currentRound] || null;
+  } else {
+    return NEXT_ROUND[currentRound] || null;
+  }
+}
 
 export interface PickSubmissionResult {
   success: boolean;
@@ -96,34 +122,54 @@ export async function submitPick(
       };
     }
 
+    // Determine which round is accepting picks
+    let acceptingPicksForRound: TournamentRound;
+
+    if (pool.allow_next_round_picks) {
+      const nextRound = getNextRound(currentRound, pool.tournament_type);
+      if (!nextRound) {
+        return {
+          success: false,
+          message: 'No next round available.',
+          error: 'NO_NEXT_ROUND',
+        };
+      }
+      acceptingPicksForRound = nextRound;
+    } else {
+      acceptingPicksForRound = currentRound;
+    }
+
     // Check if picks are locked (fast path)
-    if (pool.current_round_locked) {
+    if (pool.current_round_locked && !pool.allow_next_round_picks) {
       return {
         success: false,
-        message: `The ${currentRound} has started and picks are locked. You can no longer submit or modify picks for this round.`,
+        message: `The ${acceptingPicksForRound} has started and picks are locked. You can no longer submit or modify picks for this round.`,
         error: 'ROUND_LOCKED',
       };
     }
 
     // If not locked, verify with ESPN (on-demand check)
     // This prevents the first person after games start from slipping through
-    let roundStarted = false;
-    if (pool.tournament_type === 'nba_playoffs') {
-      roundStarted = await nbaPlayoffsRoundStarted(pool.id, currentRound);
-    } else {
-      roundStarted = await ncaaRoundStarted(currentRound);
-    }
+    // Only check if we're accepting picks for current round (not next round)
+    if (!pool.allow_next_round_picks) {
+      let roundStarted = false;
+      if (pool.tournament_type === 'nba_playoffs') {
+        roundStarted = await nbaPlayoffsRoundStarted(pool.id, acceptingPicksForRound);
+      } else {
+        roundStarted = await ncaaRoundStarted(acceptingPicksForRound);
+      }
 
-    if (roundStarted) {
-      // Lock the round immediately
-      await poolModel.updatePool(pool.id, { current_round_locked: true });
-      console.log(`[pickManager] Round ${currentRound} started - locked pool on-demand`);
+      if (roundStarted) {
+        // Lock the round immediately
+        await poolModel.updatePool(pool.id, { current_round_locked: true });
+        console.log(`[pickManager] Round ${acceptingPicksForRound} started - locked pool on-demand`);
 
-      return {
-        success: false,
-        message: `The ${currentRound} has started and picks are now locked. You can no longer submit or modify picks for this round.`,
-        error: 'ROUND_LOCKED',
-      };
+        return {
+          success: false,
+          message: `The ${acceptingPicksForRound} has started and picks are now locked. You can no longer submit or modify picks for this round.`,
+          error: 'ROUND_LOCKED',
+        };
+      }
     }
 
     // Validate team against tournament_teams table
@@ -162,8 +208,8 @@ export async function submitPick(
     // TODO: Add deadline check (Phase 3 enhancement)
     // For now, we'll allow picks anytime
 
-    // Check if participant already has a pick for current round
-    const existingPick = await pickModel.getPickByParticipantAndRound(participant.id, currentRound);
+    // Check if participant already has a pick for accepting round
+    const existingPick = await pickModel.getPickByParticipantAndRound(participant.id, acceptingPicksForRound);
 
     const isUpdate = !!existingPick;
     const oldTeam = existingPick?.team_name;
@@ -172,22 +218,22 @@ export async function submitPick(
     const pick = await pickModel.createOrUpdatePick({
       participant_id: participant.id,
       pool_id: pool.id,
-      round: currentRound,
+      round: acceptingPicksForRound,
       team_name: canonicalTeamName,
     });
 
     // Send appropriate confirmation
     if (isUpdate && oldTeam) {
-      await sendPickUpdateConfirmation(slackUserId, oldTeam, canonicalTeamName, currentRound);
+      await sendPickUpdateConfirmation(slackUserId, oldTeam, canonicalTeamName, acceptingPicksForRound);
     } else {
-      await sendPickConfirmation(slackUserId, canonicalTeamName, currentRound);
+      await sendPickConfirmation(slackUserId, canonicalTeamName, acceptingPicksForRound);
     }
 
     return {
       success: true,
       message: isUpdate
-        ? `Pick updated to ${canonicalTeamName} for ${currentRound}!`
-        : `Pick submitted: ${canonicalTeamName} for ${currentRound}!`,
+        ? `Pick updated to ${canonicalTeamName} for ${acceptingPicksForRound}!`
+        : `Pick submitted: ${canonicalTeamName} for ${acceptingPicksForRound}!`,
       pick,
     };
   } catch (error) {

@@ -820,6 +820,59 @@ async function loadPoolSettings() {
 
   // Update lock status display
   updateLockStatusDisplay();
+
+  // Update allow next round picks section
+  updateAllowNextRoundPicksDisplay();
+}
+
+function updateAllowNextRoundPicksDisplay() {
+  if (!currentPool) return;
+
+  const allowNextRoundSection = document.getElementById('allowNextRoundPicksSection');
+  const allowNextRoundBtn = document.getElementById('allowNextRoundPicksBtn');
+  const disableNextRoundBtn = document.getElementById('disableNextRoundPicksBtn');
+  const nextRoundStatus = document.getElementById('nextRoundPicksStatus');
+
+  if (currentPool.status === 'active' && currentPool.current_round) {
+    allowNextRoundSection.style.display = 'block';
+
+    // Determine next round based on tournament type
+    const nextRoundMap = currentPool.tournament_type === 'nba_playoffs'
+      ? {
+          'First Round': 'Conference Semifinals',
+          'Conference Semifinals': 'Conference Finals',
+          'Conference Finals': 'NBA Finals',
+          'NBA Finals': null
+        }
+      : {
+          'Round of 64': 'Round of 32',
+          'Round of 32': 'Sweet Sixteen',
+          'Sweet Sixteen': 'Elite Eight',
+          'Elite Eight': 'Final Four',
+          'Final Four': 'Championship',
+          'Championship': null
+        };
+
+    const nextRound = nextRoundMap[currentPool.current_round];
+
+    if (currentPool.allow_next_round_picks) {
+      // Show status and disable button, hide allow button
+      nextRoundStatus.innerHTML = `<span style="background: #ff9800; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;">✅ Accepting picks for: ${nextRound}</span>`;
+      allowNextRoundBtn.style.display = 'none';
+      disableNextRoundBtn.style.display = 'inline-block';
+    } else if (nextRound) {
+      // Show allow button, hide disable button
+      nextRoundStatus.innerHTML = '';
+      allowNextRoundBtn.textContent = `Allow ${nextRound} Picks`;
+      allowNextRoundBtn.style.display = 'inline-block';
+      disableNextRoundBtn.style.display = 'none';
+    } else {
+      // Final round, hide everything
+      allowNextRoundSection.style.display = 'none';
+    }
+  } else {
+    allowNextRoundSection.style.display = 'none';
+  }
 }
 
 function updateLockStatusDisplay() {
@@ -928,6 +981,48 @@ async function unlockCurrentRound() {
   } catch (error) {
     console.error('Error unlocking round:', error);
     alert('Failed to unlock round');
+  }
+}
+
+async function allowNextRoundPicks() {
+  if (!currentPool) {
+    alert('No pool loaded');
+    return;
+  }
+
+  if (!confirm('Allow participants to submit picks for the next round?\n\nThe current round will continue processing normally.')) {
+    return;
+  }
+
+  try {
+    const data = await api.allowNextRoundPicks();
+    alert(`Success! Picks are now open for ${data.nextRound}`);
+    // Reload pool to update UI
+    await loadPoolSettings();
+  } catch (error) {
+    console.error('Error enabling next round picks:', error);
+    alert('Failed to enable next round picks: ' + error.message);
+  }
+}
+
+async function disableNextRoundPicks() {
+  if (!currentPool) {
+    alert('No pool loaded');
+    return;
+  }
+
+  if (!confirm('Disable next round picks?\n\nBetty will return to accepting picks for the current round only.')) {
+    return;
+  }
+
+  try {
+    const data = await api.disableNextRoundPicks();
+    alert('Success! Now accepting picks for current round only');
+    // Reload pool to update UI
+    await loadPoolSettings();
+  } catch (error) {
+    console.error('Error disabling next round picks:', error);
+    alert('Failed to disable next round picks: ' + error.message);
   }
 }
 

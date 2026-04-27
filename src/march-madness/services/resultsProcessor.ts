@@ -38,6 +38,44 @@ const NEXT_ROUND: Partial<Record<TournamentRound, TournamentRound | null>> = {
   'Championship':  null,
 };
 
+// Round ordering for March Madness (for determining "future" rounds)
+const MARCH_MADNESS_ROUND_ORDER: TournamentRound[] = [
+  'Round of 64',
+  'Round of 32',
+  'Sweet Sixteen',
+  'Elite Eight',
+  'Final Four',
+  'Championship',
+];
+
+// Round ordering for NBA Playoffs (for determining "future" rounds)
+const NBA_PLAYOFFS_ROUND_ORDER: TournamentRound[] = [
+  'First Round',
+  'Conference Semifinals',
+  'Conference Finals',
+  'NBA Finals',
+];
+
+/**
+ * Check if roundToCheck comes AFTER baseRound in the tournament sequence
+ */
+function isRoundAfter(
+  roundToCheck: TournamentRound,
+  baseRound: TournamentRound,
+  tournamentType: 'march_madness' | 'nba_playoffs'
+): boolean {
+  const order = tournamentType === 'nba_playoffs' ? NBA_PLAYOFFS_ROUND_ORDER : MARCH_MADNESS_ROUND_ORDER;
+  const baseIndex = order.indexOf(baseRound);
+  const checkIndex = order.indexOf(roundToCheck);
+
+  if (baseIndex === -1 || checkIndex === -1) {
+    console.warn(`[resultsProcessor] Unknown round in isRoundAfter: ${roundToCheck} or ${baseRound}`);
+    return false;
+  }
+
+  return checkIndex > baseIndex;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -558,6 +596,9 @@ export async function eliminateTeam(
   await teamModel.markTeamEliminated(team.id, round);
   console.log(`[resultsProcessor] Marked "${team.team_name}" eliminated in ${round}`);
 
+  // Delete any future picks for this team (in later rounds)
+  await deleteFuturePicksForTeam(poolId, team.team_name, round);
+
   // Find pending picks for this team in this round
   const picks = await getPendingPicksForTeam(poolId, team.team_name, round);
 
@@ -803,6 +844,9 @@ async function runNoPickSweep(poolId: string, round: TournamentRound): Promise<s
     eliminatedUserIds.push(participant.slack_user_id);
     eliminatedUsernames.push(participant.slack_username || participant.slack_user_id);
 
+    // Void any future picks they may have submitted
+    await voidFuturePicks(participant.id, round);
+
     // Individual roast DM
     const dmText = await generateNoPickDM(participant.slack_username || 'friend', round, currentPool?.tournament_type);
     await sendDM(participant.slack_user_id, dmText);
@@ -1021,7 +1065,11 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
         console.warn(`[resultsProcessor] Reached null next round without tournament ending — this is unexpected`);
       } else {
         // Advance to next round and unlock picks
-        await poolModel.updatePool(currentPool.id, { current_round: nextRound, current_round_locked: false });
+        await poolModel.updatePool(currentPool.id, {
+          current_round: nextRound,
+          current_round_locked: false,
+          allow_next_round_picks: false,
+        });
         await sendMainChannelMessage(`🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`);
         console.log(`[resultsProcessor] Advanced pool to ${nextRound} and unlocked picks`);
       }
@@ -1098,7 +1146,11 @@ export async function simulateRoundEnd(): Promise<{ round: string; nextRound: st
     console.warn(`[resultsProcessor] simulateRoundEnd: reached null next round without tournament ending`);
     return { round, nextRound: null };
   } else {
-    await poolModel.updatePool(currentPool.id, { current_round: nextRound, current_round_locked: false });
+    await poolModel.updatePool(currentPool.id, {
+      current_round: nextRound,
+      current_round_locked: false,
+      allow_next_round_picks: false,
+    });
     await sendMainChannelMessage(`🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`);
     console.log(`[resultsProcessor] simulateRoundEnd: pool advanced to ${nextRound} and unlocked picks`);
     return { round, nextRound };
@@ -1138,7 +1190,131 @@ async function processNBAPlayoffsSeries(poolId: string): Promise<void> {
   console.log(`[resultsProcessor] Found ${completedSeries.length} completed series`);
 
   for (const series of completedSeries) {
-    await processSeriesResult(poolId, series, pool.current_round);
+    // Use series.round instead of pool.current_round to allow processing series from any round
+    // This enables First Round series to process even after pool advances to Conference Semifinals
+    await processSeriesResult(poolId, series, series.round);
+  }
+}
+
+/**
+ * Delete any pending picks for rounds AFTER the elimination round
+ * Called when a participant is eliminated to clean up early-submitted picks
+ * Since participant is eliminated, they won't need these picks anymore
+ * Sends DM notification to participant about deleted picks
+ */
+async function voidFuturePicks(
+  participantId: string,
+  eliminatedRound: TournamentRound
+): Promise<void> {
+  // Get pool to determine tournament type
+  const pool = await poolModel.getCurrentPool();
+  if (!pool) {
+    console.warn('[resultsProcessor] No pool found in voidFuturePicks');
+    return;
+  }
+
+  // Get participant for Slack info
+  const participant = await participantModel.getParticipantById(participantId);
+  if (!participant) {
+    console.warn(`[resultsProcessor] Participant ${participantId} not found in voidFuturePicks`);
+    return;
+  }
+
+  // Get all pending picks for this participant
+  const allPicksResult = await dbPool.query(
+    `SELECT id, round, team_name
+     FROM picks
+     WHERE participant_id = $1
+       AND result = 'pending'`,
+    [participantId]
+  );
+
+  // Filter to only FUTURE rounds (rounds that come after eliminatedRound)
+  const futurePicksToDelete = allPicksResult.rows.filter(pick =>
+    isRoundAfter(pick.round as TournamentRound, eliminatedRound, pool.tournament_type)
+  );
+
+  if (futurePicksToDelete.length === 0) {
+    console.log(`[resultsProcessor] No future picks to delete for eliminated participant ${participantId}`);
+    return;
+  }
+
+  // Delete the future picks
+  const pickIds = futurePicksToDelete.map(p => p.id);
+  const result = await dbPool.query(
+    `DELETE FROM picks
+     WHERE id = ANY($1)
+     RETURNING round, team_name`,
+    [pickIds]
+  );
+
+  console.log(`[resultsProcessor] Deleted ${result.rowCount} future pick(s) for eliminated participant ${participantId}`);
+
+  // No DM needed - participant is already eliminated and received elimination message
+  // The future picks were just cleanup
+}
+
+/**
+ * Delete any pending picks for an eliminated team in FUTURE rounds only
+ * Called when a team is eliminated to clean up picks for that team in later rounds
+ * Example: Lakers lose in First Round, so any Conference Semifinals picks for Lakers are deleted
+ * Participants are notified and can then submit a new pick for a different team
+ */
+async function deleteFuturePicksForTeam(
+  poolId: string,
+  teamName: string,
+  eliminatedRound: TournamentRound
+): Promise<void> {
+  // Get pool to determine tournament type
+  const pool = await poolModel.getPoolById(poolId);
+  if (!pool) {
+    console.warn(`[resultsProcessor] Pool ${poolId} not found in deleteFuturePicksForTeam`);
+    return;
+  }
+
+  // Get all pending picks for this team
+  const allPicksResult = await dbPool.query(
+    `SELECT pk.id, pk.round, pk.participant_id, p.slack_user_id, p.slack_username
+     FROM picks pk
+     JOIN participants p ON p.id = pk.participant_id
+     WHERE pk.pool_id = $1
+       AND pk.team_name = $2
+       AND pk.result = 'pending'`,
+    [poolId, teamName]
+  );
+
+  // Filter to only FUTURE rounds (rounds that come after eliminatedRound)
+  const futurePicksToDelete = allPicksResult.rows.filter(pick =>
+    isRoundAfter(pick.round as TournamentRound, eliminatedRound, pool.tournament_type)
+  );
+
+  if (futurePicksToDelete.length === 0) {
+    console.log(`[resultsProcessor] No future picks to delete for eliminated team ${teamName}`);
+    return;
+  }
+
+  // Delete the future picks
+  const pickIds = futurePicksToDelete.map(p => p.id);
+  const result = await dbPool.query(
+    `DELETE FROM picks
+     WHERE id = ANY($1)
+     RETURNING participant_id, round`,
+    [pickIds]
+  );
+
+  console.log(`[resultsProcessor] Deleted ${result.rowCount} future pick(s) for eliminated team ${teamName}`);
+
+  // Send DM to each affected participant
+  for (const pick of futurePicksToDelete) {
+    console.log(`[resultsProcessor] - Deleted ${teamName} pick for round ${pick.round} (participant ${pick.participant_id})`);
+
+    try {
+      const dmText = `⚠️ Your *${pick.round}* pick for *${teamName}* was removed because ${teamName} was eliminated from the tournament.\n\nPlease submit a new pick for *${pick.round}* before the deadline!`;
+      await sendDM(pick.slack_user_id, dmText);
+      console.log(`[resultsProcessor] - Sent DM to ${pick.slack_username} about deleted ${teamName} pick`);
+    } catch (error) {
+      console.error(`[resultsProcessor] - Failed to send DM to ${pick.slack_user_id}:`, error);
+    }
   }
 }
 
@@ -1170,6 +1346,10 @@ async function processSeriesResult(
   await teamModel.markTeamEliminated(team.id, currentRound as TournamentRound);
   console.log(`[resultsProcessor] ✅ Team eliminated: ${losingTeam} in ${currentRound}`);
 
+  // Delete any future picks for this team (in later rounds)
+  // Example: Lakers lose First Round, delete any Conference Semifinals picks for Lakers
+  await deleteFuturePicksForTeam(poolId, losingTeam, currentRound as TournamentRound);
+
   // Find all picks for this team in current round
   const picksQuery = await dbPool.query(
     `SELECT p.*, pa.slack_user_id, pa.slack_username, pa.status as participant_status
@@ -1199,6 +1379,9 @@ async function processSeriesResult(
         eliminated_team: losingTeam,
       });
       eliminatedUsernames.push(pick.slack_username);
+
+      // Void any future picks they may have submitted
+      await voidFuturePicks(pick.participant_id, currentRound as TournamentRound);
 
       // Send elimination DM
       await sendEliminationMessage(
@@ -1538,6 +1721,7 @@ async function checkRoundCompletion(poolId: string): Promise<void> {
       await poolModel.updatePool(poolId, {
         current_round: nextRound as TournamentRound,
         current_round_locked: false,
+        allow_next_round_picks: false,
       });
       await sendMainChannelMessage(
         `🏀 Picks are now open for the *${nextRound}*! DM me your team to lock in your pick.`

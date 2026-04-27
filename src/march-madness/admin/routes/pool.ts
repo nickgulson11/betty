@@ -1,8 +1,19 @@
 import express, { Request, Response } from 'express';
 import * as poolModel from '../../models/pool';
-import { CreatePoolInput, UpdatePoolInput } from '../../types/pool';
+import { CreatePoolInput, UpdatePoolInput, TournamentRound } from '../../types/pool';
+import { NBA_PLAYOFFS_NEXT_ROUND } from '../../constants/nbaPlayoffs';
 
 const router = express.Router();
+
+// March Madness next round mapping
+const NEXT_ROUND: Partial<Record<TournamentRound, TournamentRound | null>> = {
+  'Round of 64': 'Round of 32',
+  'Round of 32': 'Sweet Sixteen',
+  'Sweet Sixteen': 'Elite Eight',
+  'Elite Eight': 'Final Four',
+  'Final Four': 'Championship',
+  'Championship': null,
+};
 
 /**
  * GET /api/pool
@@ -170,6 +181,85 @@ router.post('/:id/clear', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error clearing pool:', error);
     res.status(500).json({ error: 'Failed to clear pool' });
+  }
+});
+
+/**
+ * POST /api/pool/allow-next-round-picks
+ * Enable accepting picks for the next round while current round is in progress
+ */
+router.post('/allow-next-round-picks', async (_req: Request, res: Response) => {
+  try {
+    const pool = await poolModel.getCurrentPool();
+
+    if (!pool) {
+      res.status(404).json({ error: 'No active pool found' });
+      return;
+    }
+
+    if (pool.status !== 'active') {
+      res.status(400).json({ error: 'Pool must be active to allow next round picks' });
+      return;
+    }
+
+    if (pool.allow_next_round_picks) {
+      res.status(400).json({ error: 'Next round picks already allowed' });
+      return;
+    }
+
+    // Get next round
+    const nextRoundMap = pool.tournament_type === 'nba_playoffs'
+      ? NBA_PLAYOFFS_NEXT_ROUND
+      : NEXT_ROUND;
+    const nextRound = nextRoundMap[pool.current_round!];
+
+    if (!nextRound) {
+      res.status(400).json({ error: 'Already on final round' });
+      return;
+    }
+
+    // Update pool (no Slack message sent per user request)
+    await poolModel.updatePool(pool.id, { allow_next_round_picks: true });
+
+    res.json({
+      success: true,
+      nextRound,
+      message: `Next round picks enabled for ${nextRound}`
+    });
+  } catch (error) {
+    console.error('Error enabling next round picks:', error);
+    res.status(500).json({ error: 'Failed to enable next round picks' });
+  }
+});
+
+/**
+ * POST /api/pool/disable-next-round-picks
+ * Disable accepting picks for the next round (return to current round only)
+ */
+router.post('/disable-next-round-picks', async (_req: Request, res: Response) => {
+  try {
+    const pool = await poolModel.getCurrentPool();
+
+    if (!pool) {
+      res.status(404).json({ error: 'No active pool found' });
+      return;
+    }
+
+    if (!pool.allow_next_round_picks) {
+      res.status(400).json({ error: 'Next round picks not currently enabled' });
+      return;
+    }
+
+    // Update pool (no Slack message sent)
+    await poolModel.updatePool(pool.id, { allow_next_round_picks: false });
+
+    res.json({
+      success: true,
+      message: 'Next round picks disabled - now accepting picks for current round only'
+    });
+  } catch (error) {
+    console.error('Error disabling next round picks:', error);
+    res.status(500).json({ error: 'Failed to disable next round picks' });
   }
 });
 

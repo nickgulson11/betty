@@ -49,6 +49,8 @@ const api = {
   updatePool: (id, data) => apiRequest(`/pool/${id}`, 'PUT', data),
   advanceRound: (poolId, nextRound) => apiRequest('/pool/advance', 'POST', { poolId, nextRound }),
   clearPool: (id) => apiRequest(`/pool/${id}/clear`, 'POST'),
+  allowNextRoundPicks: () => apiRequest('/pool/allow-next-round-picks', 'POST'),
+  disableNextRoundPicks: () => apiRequest('/pool/disable-next-round-picks', 'POST'),
 
   // Participants
   getParticipants: () => apiRequest('/participants'),

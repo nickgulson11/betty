@@ -348,6 +348,37 @@
             </div>
           </div>
 
+          <hr style="margin: 30px 0; border: 1px solid #e0e0e0;">
+
+          <!-- Allow Next Round Picks Section -->
+          <div id="allowNextRoundPicksSection" style="background: #f3e5f5; padding: 15px; border-radius: 5px; border: 1px solid #9c27b0; display: none;">
+            <h3 style="margin-top: 0; color: #6a1b9a;">🎯 Next Round Picks</h3>
+            <p style="margin-bottom: 15px; color: #6a1b9a; font-size: 0.9em;">
+              Allow participants to submit picks for the next round while the current round is still in progress.
+            </p>
+            <div id="nextRoundPicksStatus" style="margin-bottom: 10px;">
+              <!-- Dynamically populated -->
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button
+                class="btn btn-warning"
+                id="allowNextRoundPicksBtn"
+                onclick="allowNextRoundPicks()"
+                style="display: none;"
+              >
+                Allow Next Round Picks
+              </button>
+              <button
+                class="btn"
+                id="disableNextRoundPicksBtn"
+                onclick="disableNextRoundPicks()"
+                style="display: none; background: #ff9800; color: white;"
+              >
+                Disable Next Round Picks
+              </button>
+            </div>
+          </div>
+
           <button class="btn btn-primary" onclick="updatePool()">💾 Save Settings</button>
 
           <hr style="margin: 30px 0; border: 1px solid #e0e0e0;">
