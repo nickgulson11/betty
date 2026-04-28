@@ -9,18 +9,33 @@ const ESPN_NBA_PLAYOFFS_URL = 'https://site.api.espn.com/apis/site/v2/sports/bas
 
 /**
  * Get current date for ESPN API (respects pool override_date)
+ * Subtracts 8 hours from UTC to ensure late games (9pm+ CST) that finish after
+ * midnight are still caught on the same "tournament day".
  */
 async function getTodayUrl(poolId: string): Promise<string> {
-  const pool = await getPool(poolId);
+  let targetDate = new Date();
 
-  let targetDate: Date;
-  if (pool?.override_date) {
-    targetDate = new Date(pool.override_date);
-  } else {
-    targetDate = new Date();
+  try {
+    const pool = await getPool(poolId);
+    if (pool?.override_date) {
+      targetDate = new Date(pool.override_date);
+      console.log(`[nbaPlayoffsService] Using override date: ${targetDate.toISOString().split('T')[0]}`);
+    } else {
+      // Subtract 8 hours (gives 2-hour buffer past midnight CST for late games)
+      targetDate = new Date(targetDate.getTime() - (8 * 60 * 60 * 1000));
+    }
+  } catch (error) {
+    console.warn('[nbaPlayoffsService] Could not fetch pool, using current date');
+    // Subtract 8 hours (gives 2-hour buffer past midnight CST for late games)
+    targetDate = new Date(targetDate.getTime() - (8 * 60 * 60 * 1000));
   }
 
-  const dateStr = targetDate.toISOString().split('T')[0].replace(/-/g, '');
+  // Use UTC methods to avoid any local timezone interpretation
+  const year = targetDate.getUTCFullYear();
+  const month = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(targetDate.getUTCDate()).padStart(2, '0');
+  const dateStr = `${year}${month}${day}`;
+
   return `${ESPN_NBA_PLAYOFFS_URL}?dates=${dateStr}&seasontype=3`; // seasontype=3 is playoffs
 }
 
