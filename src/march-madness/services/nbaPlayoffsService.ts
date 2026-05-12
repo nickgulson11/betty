@@ -49,17 +49,18 @@ function mapRoundName(espnRound: string): string {
 
   const lower = espnRound.toLowerCase();
 
+  // Check for Semifinals FIRST (before checking for Finals)
+  // Important: Must check this before 'finals' check because 'semifinals' contains 'finals'
+  if (lower.includes('semifinals') || lower.includes('semis')) {
+    return 'Conference Semifinals';
+  }
+
   // Check for Finals variations
   if (lower.includes('nba finals') || lower === 'finals') {
     return 'NBA Finals';
   }
   if (lower.includes('conference finals') || (lower.includes('finals') && (lower.includes('east') || lower.includes('west')))) {
     return 'Conference Finals';
-  }
-
-  // Check for Semifinals
-  if (lower.includes('semifinals') || lower.includes('semis')) {
-    return 'Conference Semifinals';
   }
 
   // Check for First Round
