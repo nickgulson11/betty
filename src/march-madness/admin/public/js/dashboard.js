@@ -790,6 +790,7 @@ async function loadPoolSettings() {
 
   document.getElementById('pool-name').value = currentPool.name;
   document.getElementById('pool-tournament-type').value = currentPool.tournament_type || 'march_madness';
+  document.getElementById('pool-series-prediction-mode').checked = currentPool.series_prediction_mode || false;
   document.getElementById('pool-status-select').value = currentPool.status;
   document.getElementById('pool-entry-fee').value = currentPool.entry_fee || '';
 
@@ -915,6 +916,7 @@ async function updatePool() {
   const name = document.getElementById('pool-name').value;
   const current_round = document.getElementById('pool-round').value || null;
   const tournament_type = document.getElementById('pool-tournament-type').value;
+  const series_prediction_mode = document.getElementById('pool-series-prediction-mode').checked;
   const status = document.getElementById('pool-status-select').value;
   const entry_fee = parseFloat(document.getElementById('pool-entry-fee').value) || null;
 
@@ -924,10 +926,10 @@ async function updatePool() {
     ? document.getElementById('override-date-picker').value || null
     : null;
 
-  console.log('Updating pool with:', { name, current_round, tournament_type, status, entry_fee, override_date }); // Debug log
+  console.log('Updating pool with:', { name, current_round, tournament_type, series_prediction_mode, status, entry_fee, override_date }); // Debug log
 
   try {
-    const updated = await api.updatePool(currentPool.id, { name, current_round, tournament_type, status, entry_fee, override_date });
+    const updated = await api.updatePool(currentPool.id, { name, current_round, tournament_type, series_prediction_mode, status, entry_fee, override_date });
     console.log('Pool updated:', updated); // Debug log
     currentPool = updated; // Update local cache with fresh data
     alert('Pool settings updated');

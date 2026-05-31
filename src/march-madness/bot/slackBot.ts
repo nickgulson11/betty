@@ -58,18 +58,31 @@ export async function startMarchMadnessBot(port: number): Promise<void> {
       const lowerText = text.toLowerCase();
 
       if (lowerText === 'help' || lowerText === 'info') {
-        await say(
-          `🏀 *March Madness Pool - How to Play*\n\n` +
-            `*Submit a pick:* Just send me the team name (e.g., "Duke", "North Carolina", "Heels")\n\n` +
-            `*Check your pick:* Send \`my pick\` or \`status\`\n\n` +
-            `*See active teams:* Send \`teams\`\n\n` +
-            `*Rules:*\n` +
-            `• Pick ONE team per round\n` +
-            `• If your team wins, you advance\n` +
-            `• If your team loses, you're eliminated\n` +
-            `• You CANNOT reuse teams across rounds\n\n` +
-            `Good luck! 🍀`
-        );
+        const pool = await poolModel.getCurrentPool();
+        if (pool && pool.series_prediction_mode) {
+          await say(
+            `🏀 *NBA Series Prediction Mode - How to Play*\n\n` +
+              `*Submit a prediction:* Just send me one of the possible options (e.g., "Knicks in 5", "Spurs in 6")\n\n` +
+              `*Check your prediction:* Send \`my pick\` or \`status\`\n\n` +
+              `*Possible options:*\n` +
+              `• Knicks in 4, Knicks in 5, Knicks in 6, Knicks in 7\n` +
+              `• Spurs in 4, Spurs in 5, Spurs in 6, Spurs in 7\n\n` +
+              `Good luck! 🍀`
+          );
+        } else {
+          await say(
+            `🏀 *March Madness Pool - How to Play*\n\n` +
+              `*Submit a pick:* Just send me the team name (e.g., "Duke", "North Carolina", "Heels")\n\n` +
+              `*Check your pick:* Send \`my pick\` or \`status\`\n\n` +
+              `*See active teams:* Send \`teams\`\n\n` +
+              `*Rules:*\n` +
+              `• Pick ONE team per round\n` +
+              `• If your team wins, you advance\n` +
+              `• If your team loses, you're eliminated\n` +
+              `• You CANNOT reuse teams across rounds\n\n` +
+              `Good luck! 🍀`
+          );
+        }
         return;
       }
 
@@ -77,6 +90,15 @@ export async function startMarchMadnessBot(port: number): Promise<void> {
         const pool = await poolModel.getCurrentPool();
         if (!pool) {
           await say(`No active pool found. Contact the admin.`);
+          return;
+        }
+
+        if (pool.series_prediction_mode) {
+          await say(
+            `🏀 *NBA Series Prediction Options*\n\n` +
+              `• Knicks in 4, Knicks in 5, Knicks in 6, Knicks in 7\n` +
+              `• Spurs in 4, Spurs in 5, Spurs in 6, Spurs in 7`
+          );
           return;
         }
 

@@ -101,6 +101,10 @@ export async function updatePool(id: string, input: UpdatePoolInput): Promise<Po
     updates.push(`allow_next_round_picks = $${paramCount++}`);
     values.push(input.allow_next_round_picks);
   }
+  if (input.series_prediction_mode !== undefined) {
+    updates.push(`series_prediction_mode = $${paramCount++}`);
+    values.push(input.series_prediction_mode);
+  }
 
   if (updates.length === 0) {
     return getPoolById(id);

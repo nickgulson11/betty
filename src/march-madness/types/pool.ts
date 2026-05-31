@@ -32,6 +32,7 @@ export interface Pool {
   override_date: Date | null; // Testing only: manually set date for ESPN API
   current_round_locked: boolean; // TRUE when current round games started, picks locked
   allow_next_round_picks: boolean; // TRUE when admin enables accepting picks for next round while current in progress
+  series_prediction_mode?: boolean; // TRUE when pool is in NBA series prediction mode (bypasses normal pick logic)
 }
 
 export interface CreatePoolInput {
@@ -52,4 +53,5 @@ export interface UpdatePoolInput {
   override_date?: Date | null;
   current_round_locked?: boolean;
   allow_next_round_picks?: boolean;
+  series_prediction_mode?: boolean;
 }

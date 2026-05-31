@@ -920,6 +920,12 @@ export async function processGames(games: TournamentGame[]): Promise<ProcessorRe
     return result;
   }
 
+  // Skip processing if pool is in series prediction mode
+  if (currentPool.series_prediction_mode) {
+    console.log('[resultsProcessor] Pool is in NBA series prediction mode — skipping game result processing');
+    return result;
+  }
+
   // Skip processing if tournament is already completed
   if (currentPool.status === 'completed') {
     console.log('[resultsProcessor] Tournament is completed — skipping game processing');
@@ -1190,9 +1196,24 @@ async function processNBAPlayoffsSeries(poolId: string): Promise<void> {
   console.log(`[resultsProcessor] Found ${completedSeries.length} completed series`);
 
   for (const series of completedSeries) {
-    // Use series.round instead of pool.current_round to allow processing series from any round
-    // This enables First Round series to process even after pool advances to Conference Semifinals
-    await processSeriesResult(poolId, series, series.round);
+    // Determine the correct round for this series
+    // ESPN's round data can be unreliable (may show future rounds), so validate it
+    let roundToUse = pool.current_round;
+
+    // Check if ESPN's round is the current round or a previous round (late-completing series)
+    const espnRoundIndex = NBA_PLAYOFFS_ROUND_ORDER.indexOf(series.round as TournamentRound);
+    const currentRoundIndex = NBA_PLAYOFFS_ROUND_ORDER.indexOf(pool.current_round);
+
+    if (espnRoundIndex !== -1 && espnRoundIndex <= currentRoundIndex) {
+      // ESPN round is valid (current or previous round)
+      roundToUse = series.round as TournamentRound;
+      console.log(`[resultsProcessor] Using ESPN round "${series.round}" for series`);
+    } else {
+      // ESPN round is invalid (future round or unknown) - use pool's current round
+      console.warn(`[resultsProcessor] ESPN round "${series.round}" is invalid (future round?), using pool current_round "${pool.current_round}" instead`);
+    }
+
+    await processSeriesResult(poolId, series, roundToUse);
   }
 }
 
@@ -1746,6 +1767,12 @@ export async function processResults(poolId: string): Promise<void> {
   const pool = await poolModel.getPool(poolId);
   if (!pool) {
     console.error('[resultsProcessor] Pool not found');
+    return;
+  }
+
+  // Skip processing if pool is in series prediction mode
+  if (pool.series_prediction_mode) {
+    console.log('[resultsProcessor] Pool is in NBA series prediction mode — skipping results processing');
     return;
   }
 

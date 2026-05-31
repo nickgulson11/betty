@@ -3,6 +3,7 @@ import * as pickModel from '../../models/pick';
 import * as poolModel from '../../models/pool';
 import { CreatePickInput, UpdatePickInput } from '../../types/pick';
 import { TournamentRound } from '../../types/pool';
+import { matchSeriesOption } from '../../services/pickManager';
 
 const router = express.Router();
 
@@ -108,32 +109,48 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // If pool_id not provided, use current pool
+    let pool = null;
     if (!input.pool_id) {
-      const pool = await poolModel.getCurrentPool();
+      pool = await poolModel.getCurrentPool();
       if (!pool) {
         res.status(404).json({ error: 'No active pool found' });
         return;
       }
       input.pool_id = pool.id;
+    } else {
+      pool = await poolModel.getPoolById(input.pool_id);
     }
 
-    // Check if team has already been used by this participant (excluding current round)
-    const teamsUsed = await pickModel.getTeamsUsedByParticipant(input.participant_id);
-    const existingPick = await pickModel.getPickByParticipantAndRound(
-      input.participant_id,
-      input.round
-    );
+    // Series prediction mode validation bypass
+    const isSeriesMode = pool?.series_prediction_mode ?? false;
+    if (isSeriesMode) {
+      const canonicalPick = matchSeriesOption(input.team_name);
+      if (!canonicalPick) {
+        res.status(400).json({
+          error: `In Series Pick Mode, team_name must be one of: Knicks in 4-7, Spurs in 4-7. Received: "${input.team_name}"`,
+        });
+        return;
+      }
+      input.team_name = canonicalPick;
+    } else {
+      // Check if team has already been used by this participant (excluding current round)
+      const teamsUsed = await pickModel.getTeamsUsedByParticipant(input.participant_id);
+      const existingPick = await pickModel.getPickByParticipantAndRound(
+        input.participant_id,
+        input.round
+      );
 
-    // Filter out the current pick's team if updating
-    const otherTeamsUsed = existingPick
-      ? teamsUsed.filter((t) => t !== existingPick.team_name)
-      : teamsUsed;
+      // Filter out the current pick's team if updating
+      const otherTeamsUsed = existingPick
+        ? teamsUsed.filter((t) => t !== existingPick.team_name)
+        : teamsUsed;
 
-    if (otherTeamsUsed.includes(input.team_name)) {
-      res.status(409).json({
-        error: `Team "${input.team_name}" has already been used by this participant`,
-      });
-      return;
+      if (otherTeamsUsed.includes(input.team_name)) {
+        res.status(409).json({
+          error: `Team "${input.team_name}" has already been used by this participant`,
+        });
+        return;
+      }
     }
 
     const pick = await pickModel.createOrUpdatePick(input);
@@ -156,16 +173,30 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (input.team_name) {
       const existingPick = await pickModel.getPickById(req.params.id);
       if (existingPick) {
-        const teamsUsed = await pickModel.getTeamsUsedByParticipant(
-          existingPick.participant_id
-        );
-        const otherTeamsUsed = teamsUsed.filter((t) => t !== existingPick.team_name);
+        const pool = await poolModel.getPoolById(existingPick.pool_id);
+        const isSeriesMode = pool?.series_prediction_mode ?? false;
 
-        if (otherTeamsUsed.includes(input.team_name)) {
-          res.status(409).json({
-            error: `Team "${input.team_name}" has already been used by this participant`,
-          });
-          return;
+        if (isSeriesMode) {
+          const canonicalPick = matchSeriesOption(input.team_name);
+          if (!canonicalPick) {
+            res.status(400).json({
+              error: `In Series Pick Mode, team_name must be one of: Knicks in 4-7, Spurs in 4-7. Received: "${input.team_name}"`,
+            });
+            return;
+          }
+          input.team_name = canonicalPick;
+        } else {
+          const teamsUsed = await pickModel.getTeamsUsedByParticipant(
+            existingPick.participant_id
+          );
+          const otherTeamsUsed = teamsUsed.filter((t) => t !== existingPick.team_name);
+
+          if (otherTeamsUsed.includes(input.team_name)) {
+            res.status(409).json({
+              error: `Team "${input.team_name}" has already been used by this participant`,
+            });
+            return;
+          }
         }
       }
     }

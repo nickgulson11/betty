@@ -9,6 +9,36 @@ import { hasRoundStarted as nbaPlayoffsRoundStarted } from './nbaPlayoffsService
 import { NBA_PLAYOFFS_NEXT_ROUND } from '../constants/nbaPlayoffs';
 import { TournamentRound, TournamentType } from '../types/pool';
 
+export const SERIES_OPTIONS = [
+  'Knicks in 4',
+  'Knicks in 5',
+  'Knicks in 6',
+  'Knicks in 7',
+  'Spurs in 4',
+  'Spurs in 5',
+  'Spurs in 6',
+  'Spurs in 7'
+];
+
+export function matchSeriesOption(input: string): string | null {
+  if (!input) return null;
+  const normalizedInput = input.trim().toLowerCase().replace(/\s*in\s*/g, ' ').replace(/\s+/g, ' ');
+  for (const option of SERIES_OPTIONS) {
+    const normalizedOption = option.toLowerCase().replace(/\s*in\s*/g, ' ').replace(/\s+/g, ' ');
+    if (normalizedInput === normalizedOption || normalizedInput.includes(normalizedOption) || normalizedOption.includes(normalizedInput)) {
+      return option;
+    }
+  }
+  const ultraNormalizedInput = input.toLowerCase().replace(/[^a-z0-9]/g, '');
+  for (const option of SERIES_OPTIONS) {
+    const ultraNormalizedOption = option.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (ultraNormalizedInput === ultraNormalizedOption) {
+      return option;
+    }
+  }
+  return null;
+}
+
 // March Madness next round mapping
 const NEXT_ROUND: Partial<Record<TournamentRound, TournamentRound | null>> = {
   'Round of 64': 'Round of 32',
@@ -137,6 +167,48 @@ export async function submitPick(
       acceptingPicksForRound = nextRound;
     } else {
       acceptingPicksForRound = currentRound;
+    }
+
+    // Series prediction mode bypass
+    if (pool.series_prediction_mode) {
+      const canonicalPick = matchSeriesOption(teamName);
+      if (!canonicalPick) {
+        return {
+          success: false,
+          message: `Your prediction must be one of the following options:\n` +
+            `• Knicks in 4, Knicks in 5, Knicks in 6, Knicks in 7\n` +
+            `• Spurs in 4, Spurs in 5, Spurs in 6, Spurs in 7`,
+          error: 'INVALID_SERIES_PICK',
+        };
+      }
+
+      // Check if participant already has a pick for accepting round
+      const existingPick = await pickModel.getPickByParticipantAndRound(participant.id, acceptingPicksForRound);
+      const isUpdate = !!existingPick;
+      const oldTeam = existingPick?.team_name;
+
+      // Upsert pick
+      const pick = await pickModel.createOrUpdatePick({
+        participant_id: participant.id,
+        pool_id: pool.id,
+        round: acceptingPicksForRound,
+        team_name: canonicalPick,
+      });
+
+      // Send Slack confirmation
+      if (isUpdate && oldTeam) {
+        await sendPickUpdateConfirmation(slackUserId, oldTeam, canonicalPick, acceptingPicksForRound);
+      } else {
+        await sendPickConfirmation(slackUserId, canonicalPick, acceptingPicksForRound);
+      }
+
+      return {
+        success: true,
+        message: isUpdate
+          ? `Pick updated to ${canonicalPick} for ${acceptingPicksForRound}!`
+          : `Pick submitted: ${canonicalPick} for ${acceptingPicksForRound}!`,
+        pick,
+      };
     }
 
     // Check if picks are locked (fast path)
